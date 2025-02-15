@@ -1,0 +1,25 @@
+https://github.com/trevorhobenshield/twitter-api-client/issues/102#issuecomment-2563297358
+
+Eliza devs are used to fetching TWITTER_COOKIES. So it can be the same thing, you just post the TWITTER_COOKIES to one of these Dstack instances. Or run your own!
+https://github.com/elizaOS/eliza/issues/1431#issuecomment-2628243711
+
+Example of interposing the twitter undocumented api (in order to more easily support a majority of the twitter api features) 
+https://github.com/Account-Link/twitter-filter
+
+Scratch Pad diagram https://excalidraw.com/#room=6c25b210386ebc2b383f,KU1XpkQqcnEq2dO0OV9xUw
+
+/
+├── / (GET)               - Main web interface for cookie management
+├── /dashboard (GET)      - Post key management dashboard
+├── /api/
+    ├── /cookie
+    │   └── POST /        - Submit TWITTER_COOKIE
+    ├── /keys
+    │   ├── GET /         - List all post keys
+    │   ├── POST /        - Generate new post key
+    │   └── DELETE /{id}  - Revoke a post key
+    └── /tweet
+        └── POST /        - Post tweet using post key
+
+
+
