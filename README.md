@@ -10,6 +10,9 @@ In other words, this breaks down when "hiring in the swarm."
 
 So, we want to have a simple non-custodial Dstack app that gives limited access tokens to a twitter account.
 
+<img src="https://github.com/user-attachments/assets/95f36db6-9577-4c30-9c13-4e586eb65e94" width="70%"/>
+
+
 ## 1. Submit Twitter Cookie
    
 <img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
@@ -81,4 +84,8 @@ curl -X POST http://localhost:8000/api/tweet \
 ```bash
 curl -X DELETE http://localhost:8000/api/keys/your_post_key \
   -H "Cookie: session=your_session_token"
-``` 
+```
+
+### Acknowledgments
+Josh @hashwarlock for PRD review and architecture diagram 
+Shaw for setting the requirements and user story
