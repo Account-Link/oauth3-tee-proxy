@@ -2,7 +2,22 @@
 
 A service for managing Twitter cookies and post keys with safety filtering.
 
-## Setup
+## 1. Submit Twitter Cookie
+   
+<img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
+
+## 2. Create a "Post Keys"
+
+<img src="https://github.com/user-attachments/assets/b8cc368d-4d67-486c-8e14-85f3e375f9ba" width="50%"/>
+
+## 3. Use the "Post Key" to tweet
+
+<img src="https://github.com/user-attachments/assets/c4af65cf-1fe9-4015-b57c-6776a43816d1" width="50%"/>
+
+<img src="https://github.com/user-attachments/assets/56d3a416-49ad-4514-acff-f246cea32e7d" width="49%"/>
+
+
+# Setup
 
 1. Install dependencies:
 ```bash
@@ -14,28 +29,28 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## API Endpoints
+# API Endpoints
 
-### Web Interface
+## Web Interface
 - `GET /` - Web interface for submitting Twitter cookie
 - `GET /dashboard` - Manage post keys
 
-### API Endpoints
+## API Endpoints
 - `POST /api/cookie` - Submit Twitter cookie
 - `POST /api/keys` - Create new post key
 - `DELETE /api/keys/{key_id}` - Revoke post key
 - `POST /api/tweet` - Post tweet using post key
 
-## Example Usage
+# Example Usage
 
-### Submit Twitter Cookie
+## Submit Twitter Cookie
 ```bash
 curl -X POST http://localhost:8000/api/cookie \
   -H "Content-Type: application/json" \
   -d '{"twitter_cookie": "your_twitter_cookie_string"}'
 ```
 
-### Create Post Key
+## Create Post Key
 ```bash
 curl -X POST http://localhost:8000/api/keys \
   -H "Content-Type: application/json" \
@@ -43,7 +58,7 @@ curl -X POST http://localhost:8000/api/keys \
   -d '{"name": "My Bot Key"}'
 ```
 
-### Post Tweet
+## Post Tweet
 ```bash
 curl -X POST http://localhost:8000/api/tweet \
   -H "Content-Type: application/json" \
@@ -54,7 +69,7 @@ curl -X POST http://localhost:8000/api/tweet \
   }'
 ```
 
-### Revoke Post Key
+## Revoke Post Key
 ```bash
 curl -X DELETE http://localhost:8000/api/keys/your_post_key \
   -H "Cookie: session=your_session_token"
