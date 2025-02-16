@@ -2,6 +2,14 @@
 
 A service for managing Twitter cookies and post keys with safety filtering.
 
+AI Agents are used to posting with a Twitter `auth_token` using the undocumented API. This is as powerful as being logged in with the user’s twitter account.
+
+This is great when the account owner manages their own agent, but if the agent is managed by an external dev, then an `auth_token` cookie is too much authority to share.
+
+In other words, this breaks down when "hiring in the swarm."
+
+So, we want to have a simple non-custodial Dstack app that gives limited access tokens to a twitter account.
+
 ## 1. Submit Twitter Cookie
    
 <img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
