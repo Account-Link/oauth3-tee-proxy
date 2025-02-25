@@ -10,6 +10,7 @@ from typing import Optional
 from pydantic import BaseModel
 import json
 import traceback
+import logging
 
 from models import User, WebAuthnCredential, TwitterAccount, PostKey, UserSession, TweetLog
 from safety import SafetyFilter, SafetyLevel
@@ -20,8 +21,18 @@ from twitter_client import TwitterClient
 from patches import apply_patches
 apply_patches()
 
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="OAuth3 Twitter Cookie Service")
 templates = Jinja2Templates(directory="templates")
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Get settings
 settings = get_settings()
@@ -57,105 +68,16 @@ class TweetRequest(BaseModel):
 
 # Routes for web interface (browser-based)
 @app.get("/", response_class=HTMLResponse)
-async def home(response: Response):
-    return """
-    <html>
-        <head>
-            <title>OAuth3 Twitter Cookie</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }
-                .auth-options {
-                    display: flex;
-                    gap: 20px;
-                    margin-top: 20px;
-                }
-                .auth-option {
-                    flex: 1;
-                    padding: 20px;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                }
-                .button {
-                    display: inline-block;
-                    padding: 10px 20px;
-                    background-color: #0066cc;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                }
-                .button:hover {
-                    background-color: #0052a3;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Welcome to OAuth3 Twitter Cookie</h1>
-            <div class="auth-options">
-                <div class="auth-option">
-                    <h2>Register with Passkey</h2>
-                    <p>Create a new account using your device's biometric authentication or security key.</p>
-                    <a href="/register" class="button">Register with Passkey</a>
-                </div>
-                <div class="auth-option">
-                    <h2>Login with Passkey</h2>
-                    <p>Already have an account? Sign in with your passkey.</p>
-                    <a href="/login" class="button">Login with Passkey</a>
-                </div>
-            </div>
-        </body>
-    </html>
-    """
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     return templates.TemplateResponse("webauthn_register.html", {"request": request})
 
 @app.get("/submit-cookie", response_class=HTMLResponse)
-async def submit_cookie_page():
-    return """
-    <html>
-        <head>
-            <title>Submit Twitter Cookie</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    max-width: 600px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }
-                textarea {
-                    width: 100%;
-                    margin: 10px 0;
-                }
-                button {
-                    background-color: #0066cc;
-                    color: white;
-                    padding: 10px 20px;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                }
-                button:hover {
-                    background-color: #0052a3;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Submit Twitter Cookie</h1>
-            <form action="/api/cookie" method="POST" enctype="application/x-www-form-urlencoded">
-                <textarea name="twitter_cookie" rows="10" cols="50" placeholder="Paste your Twitter cookie here"></textarea>
-                <br>
-                <button type="submit">Submit</button>
-            </form>
-        </body>
-    </html>
-    """
+async def submit_cookie_page(request: Request):
+    return templates.TemplateResponse("submit_cookie.html", {"request": request})
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -163,54 +85,36 @@ async def login_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
-    try:
-        # Debug the session contents
-        print("\n=== Dashboard Session Debug ===")
-        print("Raw session:", request.session)
-        print("Session as dict:", dict(request.session))
-        print("user_id from session:", request.session.get("user_id"))
-        print("user_id type:", type(request.session.get("user_id")))
-        print("==============================\n")
-        
-        user_id = request.session.get("user_id")
-        if not user_id:
-            return RedirectResponse(url="/login")
-        
-        # Debug the database query
-        user_query = db.query(User).filter(User.id == user_id)
-        print("SQL Query:", str(user_query))
-        
-        user = user_query.first()
-        print(f"User object: {user}")
-        print(f"User type: {type(user)}")
-        
-        if not user:
-            return RedirectResponse(url="/login")
-        
-        twitter_accounts = db.query(TwitterAccount).filter(
-            TwitterAccount.user_id == user_id
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse(url="/login")
+    
+    twitter_accounts = db.query(TwitterAccount).filter(
+        TwitterAccount.user_id == user_id
+    ).all()
+    
+    post_keys = []
+    for account in twitter_accounts:
+        keys = db.query(PostKey).filter(
+            PostKey.twitter_id == account.twitter_id,
+            PostKey.is_active == True
         ).all()
-        
-        post_keys = []
-        for account in twitter_accounts:
-            keys = db.query(PostKey).filter(
-                PostKey.twitter_id == account.twitter_id,
-                PostKey.is_active == True
-            ).all()
-            post_keys.extend(keys)
-        
-        return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
-                "user": user,
-                "twitter_accounts": twitter_accounts,
-                "post_keys": post_keys
-            }
-        )
-    except Exception as e:
-        print(f"Error in dashboard: {e}\nTraceback:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        post_keys.extend(keys)
+    
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {
+            "request": request,
+            "user": user,
+            "twitter_accounts": twitter_accounts,
+            "post_keys": post_keys
+        }
+    )
 
 # API Routes (for curl/programmatic access)
 @app.post("/api/cookie")
@@ -254,34 +158,37 @@ async def submit_cookie(
             db.add(account)
         
         db.commit()
+        logger.info(f"Successfully linked Twitter account {twitter_id} to user {user_id}")
         return {"status": "success", "message": "Twitter account linked successfully"}
     except json.JSONDecodeError as e:
-        print(f"JSON decode error: {e}\nTraceback:\n{traceback.format_exc()}")
+        logger.error(f"JSON decode error while processing cookie: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Invalid cookie format: {str(e)}")
     except Exception as e:
-        print(f"Error in submit_cookie: {e}\nTraceback:\n{traceback.format_exc()}")
+        logger.error(f"Error in submit_cookie: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/keys")
 async def create_post_key(
+    request: Request,
     name: str = Form(...),
-    session: Optional[str] = Cookie(None),
     db: Session = Depends(get_db)
 ):
-    if not session:
+    # Check if user is authenticated via session
+    user_id = request.session.get("user_id")
+    if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    user_session = db.query(UserSession).filter(
-        UserSession.session_token == session,
-        UserSession.expires_at > datetime.utcnow()
+    # Get user's Twitter accounts
+    twitter_accounts = db.query(TwitterAccount).filter(
+        TwitterAccount.user_id == user_id
     ).first()
     
-    if not user_session:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-    
+    if not twitter_accounts:
+        raise HTTPException(status_code=400, detail="No Twitter account linked")
+
     # Check if max keys reached
     key_count = db.query(PostKey).filter(
-        PostKey.twitter_id == user_session.twitter_id,
+        PostKey.twitter_id == twitter_accounts.twitter_id,
         PostKey.is_active == True
     ).count()
     
@@ -289,7 +196,7 @@ async def create_post_key(
         raise HTTPException(status_code=400, detail="Maximum number of post keys reached")
     
     post_key = PostKey(
-        twitter_id=user_session.twitter_id,
+        twitter_id=twitter_accounts.twitter_id,
         name=name
     )
     db.add(post_key)
@@ -300,23 +207,25 @@ async def create_post_key(
 @app.delete("/api/keys/{key_id}")
 async def revoke_post_key(
     key_id: str,
-    session: Optional[str] = Cookie(None),
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    if not session:
+    # Check if user is authenticated via session
+    user_id = request.session.get("user_id")
+    if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    user_session = db.query(UserSession).filter(
-        UserSession.session_token == session,
-        UserSession.expires_at > datetime.utcnow()
+    # Get user's Twitter accounts
+    twitter_account = db.query(TwitterAccount).filter(
+        TwitterAccount.user_id == user_id
     ).first()
     
-    if not user_session:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    if not twitter_account:
+        raise HTTPException(status_code=400, detail="No Twitter account linked")
     
     post_key = db.query(PostKey).filter(
         PostKey.key_id == key_id,
-        PostKey.twitter_id == user_session.twitter_id
+        PostKey.twitter_id == twitter_account.twitter_id
     ).first()
     
     if not post_key:
@@ -365,6 +274,7 @@ async def post_tweet(
                 db.add(tweet_log)
                 db.commit()
                 
+                logger.warning(f"Tweet failed safety check for post_key {post_key.key_id}: {reason}")
                 raise HTTPException(status_code=400, detail=f"Tweet failed safety check: {reason}")
         
         # Create Twitter client
@@ -382,25 +292,12 @@ async def post_tweet(
         db.add(tweet_log)
         db.commit()
         
+        logger.info(f"Successfully posted tweet {tweet_id} using post_key {post_key.key_id}")
         return {"status": "success", "tweet_id": tweet_id}
         
     except Exception as e:
-        print(f"Error in post_tweet: {e}\nTraceback:\n{traceback.format_exc()}")
+        logger.error(f"Error in post_tweet: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-# Add this after creating the FastAPI app
-@app.middleware("http")
-async def debug_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
-    except Exception as e:
-        import traceback
-        print(f"\n\n*** Exception in request: {request.url}")
-        print(f"*** {e.__class__.__name__}: {str(e)}")
-        print("*** Traceback:")
-        print(traceback.format_exc())
-        print("\n")
-        raise
 
 if __name__ == "__main__":
     import uvicorn

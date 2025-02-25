@@ -1,86 +1,136 @@
+<!DOCTYPE html>
 <html>
     <head>
-        <title>Dashboard</title>
+        <title>Dashboard - OAuth3 Twitter Cookie</title>
+        <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
         <style>
-            body {
-                font-family: Arial, sans-serif;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-            }
-            .section {
+            /* Additional dashboard-specific styles */
+            .dashboard-section {
                 margin-bottom: 30px;
                 padding: 20px;
                 border: 1px solid #ddd;
                 border-radius: 8px;
             }
-            button {
-                background-color: #0066cc;
-                color: white;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            button:hover {
-                background-color: #0052a3;
-            }
-            .key-list {
+            .account-list, .key-list {
                 list-style: none;
                 padding: 0;
             }
-            .key-item {
+            .account-item, .key-item {
+                padding: 10px;
+                margin: 5px 0;
+                background: #f5f5f5;
+                border-radius: 4px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 10px;
-                border-bottom: 1px solid #eee;
             }
-            .add-account {
-                display: inline-block;
+            .key-form {
                 margin-top: 20px;
-                text-decoration: none;
-                color: white;
-                background-color: #0066cc;
-                padding: 10px 20px;
-                border-radius: 4px;
             }
-            .add-account:hover {
-                background-color: #0052a3;
+            .key-form input {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                margin-right: 10px;
+            }
+            .delete-button {
+                background-color: #dc3545;
+            }
+            .delete-button:hover {
+                background-color: #c82333;
             }
         </style>
     </head>
     <body>
-        <h1>Welcome, {{ user.display_name or user.username }}!</h1>
-        
-        <div class="section">
+        <h1>Welcome, {{ user.username }}</h1>
+
+        <div class="dashboard-section">
             <h2>Your Twitter Accounts</h2>
-            {% for account in twitter_accounts %}
-            <div class="twitter-account">
-                <h3>Twitter ID: {{ account.twitter_id }}</h3>
-            </div>
-            {% endfor %}
-            <a href="/submit-cookie" class="add-account">Add Twitter Account</a>
+            {% if twitter_accounts %}
+                <ul class="account-list">
+                    {% for account in twitter_accounts %}
+                        <li class="account-item">
+                            <span>Twitter ID: {{ account.twitter_id }}</span>
+                            <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No Twitter accounts linked yet.</p>
+            {% endif %}
+            <a href="/submit-cookie" class="button">Add Twitter Account</a>
         </div>
-        
-        <div class="section">
+
+        <div class="dashboard-section">
             <h2>Post Keys</h2>
-            <form action="/api/keys" method="POST">
-                <input type="text" name="name" placeholder="Key Name" required>
-                <button type="submit">Create New Key</button>
+            {% if post_keys %}
+                <ul class="key-list">
+                    {% for key in post_keys %}
+                        <li class="key-item">
+                            <div>
+                                <strong>{{ key.name }}</strong>
+                                <br>
+                                <small>Key ID: {{ key.key_id }}</small>
+                            </div>
+                            <button class="button delete-button" onclick="revokeKey('{{ key.key_id }}')">Revoke</button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No active post keys.</p>
+            {% endif %}
+
+            <form class="key-form" onsubmit="createKey(event)">
+                <input type="text" id="keyName" placeholder="Key name" required>
+                <button type="submit" class="button">Create Key</button>
             </form>
-            
-            <h3>Your Keys</h3>
-            <ul class="key-list">
-                {% for key in post_keys %}
-                <li class="key-item">
-                    <span>{{ key.name }} ({{ key.key_id }})</span>
-                    <form action="/api/keys/{{ key.key_id }}" method="POST" style="display:inline">
-                        <button type="submit">Revoke</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
         </div>
+
+        <script>
+            async function createKey(event) {
+                event.preventDefault();
+                const name = document.getElementById('keyName').value;
+                
+                try {
+                    const response = await fetch('/api/keys', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `name=${encodeURIComponent(name)}`
+                    });
+                    
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        const error = await response.json();
+                        alert(error.detail || 'Failed to create key');
+                    }
+                } catch (error) {
+                    alert('Error creating key: ' + error.message);
+                }
+            }
+
+            async function revokeKey(keyId) {
+                if (!confirm('Are you sure you want to revoke this key?')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/keys/${keyId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        const error = await response.json();
+                        alert(error.detail || 'Failed to revoke key');
+                    }
+                } catch (error) {
+                    alert('Error revoking key: ' + error.message);
+                }
+            }
+        </script>
     </body>
 </html> 

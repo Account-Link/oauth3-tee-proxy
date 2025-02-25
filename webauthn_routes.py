@@ -63,22 +63,17 @@ class RegistrationSession:
     
     def clear(self):
         """Clear registration data from session"""
-        if "registration_challenge" in self.session:
-            del self.session["registration_challenge"]
-        if "registering_user_id" in self.session:
-            del self.session["registering_user_id"]
+        self.session.pop("registration_challenge", None)
+        self.session.pop("registering_user_id", None)
     
     def create_user_session(self, user_id: str):
         """Create the main user session after successful registration"""
-        print(f"\nCreating user session with user_id: {user_id}")
-        print(f"user_id type: {type(user_id)}")
-        
         session_token = str(uuid.uuid4())
-        self.session["user_id"] = user_id
-        print(f"Session after setting user_id: {dict(self.session)}")
-        
-        self.session["session_token"] = session_token
-        self.session["expires_at"] = (datetime.utcnow() + timedelta(hours=settings.SESSION_EXPIRY_HOURS)).isoformat()
+        self.session.update({
+            "user_id": user_id,
+            "session_token": session_token,
+            "expires_at": (datetime.utcnow() + timedelta(hours=settings.SESSION_EXPIRY_HOURS)).isoformat()
+        })
 
 class AuthenticationSession:
     """Handles temporary authentication data in the session"""
@@ -101,17 +96,17 @@ class AuthenticationSession:
     
     def clear(self):
         """Clear authentication data from session"""
-        if "authentication_challenge" in self.session:
-            del self.session["authentication_challenge"]
-        if "authenticating_user_id" in self.session:
-            del self.session["authenticating_user_id"]
+        self.session.pop("authentication_challenge", None)
+        self.session.pop("authenticating_user_id", None)
     
     def create_user_session(self, user_id: str):
         """Create the main user session after successful authentication"""
         session_token = str(uuid.uuid4())
-        self.session["user_id"] = user_id
-        self.session["session_token"] = session_token
-        self.session["expires_at"] = (datetime.utcnow() + timedelta(hours=settings.SESSION_EXPIRY_HOURS)).isoformat()
+        self.session.update({
+            "user_id": user_id,
+            "session_token": session_token,
+            "expires_at": (datetime.utcnow() + timedelta(hours=settings.SESSION_EXPIRY_HOURS)).isoformat()
+        })
 
 def get_registration_session(request: Request) -> RegistrationSession:
     return RegistrationSession(request)
@@ -242,30 +237,20 @@ async def start_authentication(
     db: Session = Depends(get_db)
 ):
     try:
-        print("\n=== Login Begin Debug ===")
-        print(f"Login request for username: {request.username}")
-        
         # Find user by username
         user = db.query(User).filter(User.username == request.username).first()
-        print(f"Found user: {user}")
-        print(f"User type: {type(user)}")
-        print(f"User dict: {user.__dict__ if user else None}")
-        
         if not user:
             raise HTTPException(status_code=400, detail="User not found")
-        print(f"User id: {user.id}")
-        print(f"User id type: {type(user.id)}")
         
         # Get user's credentials
         credentials = db.query(WebAuthnCredential).filter(
             WebAuthnCredential.user_id == user.id
         ).all()
-        print(f"Found credentials: {credentials}")
         
         if not credentials:
             raise HTTPException(status_code=400, detail="No credentials found for user")
         
-        # Generate authentication options with proper PublicKeyCredentialDescriptor objects
+        # Generate authentication options
         options = generate_authentication_options(
             rp_id=RP_ID,
             allow_credentials=[
@@ -279,25 +264,12 @@ async def start_authentication(
             timeout=60000,
         )
         
-        # Debug session before storing
-        print("Session before:", dict(auth_session.session))
-        print("About to store user.id:", user.id)
-        print("user.id type:", type(user.id))
-        
         # Store challenge in authentication session
         auth_session.store_challenge(options.challenge, user.id)
-        
-        # Debug session after storing
-        print("Session after:", dict(auth_session.session))
-        print("=== End Login Begin Debug ===\n")
-        
         return options_to_json(options)
         
     except Exception as e:
-        print(f"\nError in start_authentication: {e}")
-        print("Traceback:")
-        print(traceback.format_exc())
-        raise
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/webauthn/login/complete")
 async def complete_authentication(
@@ -308,10 +280,6 @@ async def complete_authentication(
     try:
         expected_challenge = auth_session.get_challenge()
         user_id = auth_session.get_user_id()
-        
-        print("\n=== Login Complete Debug ===")
-        print(f"User ID from session: {user_id}")
-        print(f"User ID type: {type(user_id)}")
         
         if not expected_challenge or not user_id:
             raise HTTPException(status_code=400, detail="Authentication session expired")
@@ -353,26 +321,15 @@ async def complete_authentication(
             credential_current_sign_count=stored_credential.sign_count
         )
         
-        # Before creating user session
-        print("About to create user session with user_id:", user_id)
-        print("User ID type:", type(user_id))
-        
-        # Update credential sign count
+        # Update credential sign count and create session
         stored_credential.sign_count = verification.new_sign_count
         stored_credential.last_used_at = datetime.utcnow()
         
-        # Clear authentication session and create user session
         auth_session.clear()
         auth_session.create_user_session(user_id)
         
-        # After creating user session
-        print("Session after creating user session:", dict(auth_session.session))
-        
         db.commit()
-        
         return {"status": "success", "user_id": user_id}
         
     except Exception as e:
-        print(f"Error in login complete: {e}")
-        print("Traceback:", traceback.format_exc())
-        raise 
+        raise HTTPException(status_code=400, detail=str(e)) 
