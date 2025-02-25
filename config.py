@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     TELEGRAM_API_HASH: str
     TELEGRAM_SESSION_PATH: str = "./telegram_sessions"
 
+    # OAuth2 Settings
+    OAUTH2_TOKEN_EXPIRE_HOURS: int = 24
+    OAUTH2_ALLOWED_SCOPES: str = "telegram.post_any tweet.post"
+
     class Config:
         env_file = ".env"
 

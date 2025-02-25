@@ -1,8 +1,8 @@
 # OAuth3 Twitter Cookie Service
 
-A service for managing Twitter cookies and post keys with safety filtering.
+A service for managing Twitter cookies and post keys with safety filtering and OAuth2 token support.
 
-AI Agents are used to posting with a Twitter `auth_token` using the undocumented API. This is as powerful as being logged in with the user’s twitter account.
+AI Agents are used to posting with a Twitter `auth_token` using the undocumented API. This is as powerful as being logged in with the user's twitter account.
 
 This is great when the account owner manages their own agent, but if the agent is managed by an external dev, then an `auth_token` cookie is too much authority to share.
 
@@ -17,11 +17,19 @@ So, we want to have a simple non-custodial Dstack app that gives limited access 
    
 <img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
 
-## 2. Create a "Post Keys"
+## 2. Create Access Tokens
 
+You can either create a Post Key (legacy) or use OAuth2 tokens with scopes for more granular control.
+
+### Post Keys (Legacy)
 <img src="https://github.com/user-attachments/assets/b8cc368d-4d67-486c-8e14-85f3e375f9ba" width="50%"/>
 
-## 3. Use the "Post Key" to tweet
+### OAuth2 Tokens
+OAuth2 tokens provide more granular control through scopes:
+- `tweet.post` - Permission to post tweets
+- `telegram.post_any` - Permission to post any message to Telegram
+
+## 3. Use the Token to Access APIs
 
 <img src="https://github.com/user-attachments/assets/c4af65cf-1fe9-4015-b57c-6776a43816d1" width="50%"/>
 
@@ -44,13 +52,22 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## Web Interface
 - `GET /` - Web interface for submitting Twitter cookie
-- `GET /dashboard` - Manage post keys
+- `GET /dashboard` - Manage post keys and OAuth2 tokens
 
 ## API Endpoints
+
+### OAuth2 Endpoints
+- `POST /token` - Create new OAuth2 token (requires session authentication)
+  - Parameters:
+    - `scopes` (form field): Space-separated list of requested scopes (e.g. "tweet.post telegram.post_any")
+
+### Legacy API Endpoints
 - `POST /api/cookie` - Submit Twitter cookie
 - `POST /api/keys` - Create new post key
 - `DELETE /api/keys/{key_id}` - Revoke post key
-- `POST /api/tweet` - Post tweet using post key
+
+### Protected Endpoints
+- `POST /api/tweet` - Post tweet (supports both OAuth2 and post keys)
 
 # Example Usage
 
@@ -61,7 +78,38 @@ curl -X POST http://localhost:8000/api/cookie \
   -d '{"twitter_cookie": "your_twitter_cookie_string"}'
 ```
 
-## Create Post Key
+## OAuth2 Token Management
+
+### Create OAuth2 Token
+```bash
+curl -X POST http://localhost:8000/token \
+  -H "Cookie: oauth3_session=your_session_cookie" \
+  -d "scopes=tweet.post"
+```
+
+Response:
+```json
+{
+  "access_token": "your_access_token",
+  "token_type": "bearer",
+  "scope": "tweet.post",
+  "expires_in": 86400
+}
+```
+
+### Post Tweet with OAuth2
+```bash
+curl -X POST http://localhost:8000/api/tweet \
+  -H "Authorization: Bearer your_access_token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, World!"
+  }'
+```
+
+## Legacy Post Key Usage
+
+### Create Post Key
 ```bash
 curl -X POST http://localhost:8000/api/keys \
   -H "Content-Type: application/json" \
@@ -69,7 +117,7 @@ curl -X POST http://localhost:8000/api/keys \
   -d '{"name": "My Bot Key"}'
 ```
 
-## Post Tweet
+### Post Tweet with Post Key
 ```bash
 curl -X POST http://localhost:8000/api/tweet \
   -H "Content-Type: application/json" \
@@ -80,11 +128,24 @@ curl -X POST http://localhost:8000/api/tweet \
   }'
 ```
 
-## Revoke Post Key
+### Revoke Post Key
 ```bash
 curl -X DELETE http://localhost:8000/api/keys/your_post_key \
   -H "Cookie: session=your_session_token"
 ```
+
+# OAuth2 Scopes
+
+The following scopes are available:
+
+- `tweet.post`: Allows posting tweets
+- `telegram.post_any`: Allows posting to any connected Telegram channel
+
+OAuth2 tokens:
+- Are tied to the account owner's session
+- Have a 24-hour expiration by default
+- Support multiple scopes per token
+- Provide more granular access control than post keys
 
 ### Acknowledgments
 Josh @hashwarlock for PRD review and architecture diagram 

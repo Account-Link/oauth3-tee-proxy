@@ -20,6 +20,7 @@ class User(Base):
     twitter_accounts = relationship("TwitterAccount", back_populates="user")
     telegram_accounts = relationship("TelegramAccount", back_populates="user")
     post_keys = relationship("PostKey", back_populates="user")
+    oauth2_tokens = relationship("OAuth2Token", back_populates="user")
 
 class WebAuthnCredential(Base):
     __tablename__ = "webauthn_credentials"
@@ -106,11 +107,27 @@ class TweetLog(Base):
     __tablename__ = "tweet_logs"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    post_key_id = Column(String, ForeignKey("post_keys.key_id"))
-    tweet_text = Column(String)
+    post_key_id = Column(String, ForeignKey("post_keys.key_id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    tweet_text = Column(String, nullable=False)
     safety_check_result = Column(Boolean)
-    safety_check_message = Column(String, nullable=True)
+    safety_check_message = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    post_key = relationship("PostKey")
+    user = relationship("User")
 
+class OAuth2Token(Base):
+    __tablename__ = "oauth2_tokens"
+    
+    token_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    access_token = Column(String, unique=True, nullable=False)
+    scopes = Column(String, nullable=False)  # Store as space-separated string: "telegram.post_any tweet.post"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime)
+    user_id = Column(String, ForeignKey("users.id"))
+    
     # Relationship
-    post_key = relationship("PostKey") 
+    user = relationship("User", back_populates="oauth2_tokens") 

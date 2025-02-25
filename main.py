@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Cookie, Response, Form, Request
+from fastapi import FastAPI, HTTPException, Depends, Cookie, Response, Form, Request, Security
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -11,12 +11,14 @@ from pydantic import BaseModel
 import json
 import traceback
 import logging
+from oauth2_routes import OAuth2Token
 
 from models import User, WebAuthnCredential, TwitterAccount, PostKey, UserSession, TweetLog, TelegramAccount, TelegramChannel
 from safety import SafetyFilter, SafetyLevel
 from config import get_settings
 from database import get_db, engine, Base
 from twitter_client import TwitterClient
+from oauth2_routes import router as oauth2_router, verify_token_and_scopes
 
 from patches import apply_patches
 apply_patches()
@@ -53,9 +55,11 @@ app.add_middleware(
 # Import and include routers
 from webauthn_routes import router as webauthn_router
 from telegram_routes import router as telegram_router
+from oauth2_routes import router as oauth2_router
 
 app.include_router(webauthn_router)
 app.include_router(telegram_router)
+app.include_router(oauth2_router)
 
 # Pydantic models
 class TwitterCookieSubmit(BaseModel):
@@ -65,7 +69,6 @@ class PostKeyCreate(BaseModel):
     name: str
 
 class TweetRequest(BaseModel):
-    post_key: str
     text: str
     bypass_safety: bool = False
 
@@ -119,9 +122,11 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             TelegramChannel.telegram_account_id == account.id
         ).all()
     
-    post_keys = db.query(PostKey).filter(
-        PostKey.user_id == user_id,
-        PostKey.is_active == True
+    # Get active OAuth2 tokens
+    oauth2_tokens = db.query(OAuth2Token).filter(
+        OAuth2Token.user_id == user_id,
+        OAuth2Token.is_active == True,
+        OAuth2Token.expires_at > datetime.utcnow()
     ).all()
     
     return templates.TemplateResponse(
@@ -131,7 +136,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "twitter_accounts": twitter_accounts,
             "telegram_accounts": telegram_accounts,
-            "post_keys": post_keys
+            "oauth2_tokens": oauth2_tokens,
+            "available_scopes": settings.OAUTH2_ALLOWED_SCOPES.split()
         }
     )
 
@@ -258,34 +264,27 @@ async def revoke_post_key(
 @app.post("/api/tweet")
 async def post_tweet(
     tweet_data: TweetRequest,
+    token: OAuth2Token = Security(verify_token_and_scopes, scopes=["tweet.post"]),
     db: Session = Depends(get_db)
 ):
     try:
-        post_key = db.query(PostKey).filter(
-            PostKey.key_id == tweet_data.post_key,
-            PostKey.is_active == True
-        ).first()
-        
-        if not post_key:
-            raise HTTPException(status_code=404, detail="Invalid or inactive post key")
-        
-        # Get the associated Twitter account
+        # Get the associated Twitter account for the token's user
         twitter_account = db.query(TwitterAccount).filter(
-            TwitterAccount.twitter_id == post_key.twitter_id
+            TwitterAccount.user_id == token.user_id
         ).first()
         
         if not twitter_account:
             raise HTTPException(status_code=404, detail="Twitter account not found")
         
         # Safety check
-        if settings.SAFETY_FILTER_ENABLED and not (post_key.can_bypass_safety and tweet_data.bypass_safety):
-            safety_filter = SafetyFilter(level=SafetyLevel(post_key.safety_level))
+        if settings.SAFETY_FILTER_ENABLED:
+            safety_filter = SafetyFilter(level=SafetyLevel.MODERATE)
             is_safe, reason = await safety_filter.check_tweet(tweet_data.text)
             
             if not is_safe:
                 # Log the safety check failure
                 tweet_log = TweetLog(
-                    post_key_id=post_key.key_id,
+                    user_id=token.user_id,
                     tweet_text=tweet_data.text,
                     safety_check_result=False,
                     safety_check_message=reason
@@ -293,7 +292,7 @@ async def post_tweet(
                 db.add(tweet_log)
                 db.commit()
                 
-                logger.warning(f"Tweet failed safety check for post_key {post_key.key_id}: {reason}")
+                logger.warning(f"Tweet failed safety check for user {token.user_id}: {reason}")
                 raise HTTPException(status_code=400, detail=f"Tweet failed safety check: {reason}")
         
         # Create Twitter client
@@ -304,14 +303,14 @@ async def post_tweet(
         
         # Log successful tweet
         tweet_log = TweetLog(
-            post_key_id=post_key.key_id,
+            user_id=token.user_id,
             tweet_text=tweet_data.text,
             safety_check_result=True
         )
         db.add(tweet_log)
         db.commit()
         
-        logger.info(f"Successfully posted tweet {tweet_id} using post_key {post_key.key_id}")
+        logger.info(f"Successfully posted tweet {tweet_id} for user {token.user_id}")
         return {"status": "success", "tweet_id": tweet_id}
         
     except Exception as e:
