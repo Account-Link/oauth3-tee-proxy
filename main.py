@@ -12,7 +12,7 @@ import json
 import traceback
 import logging
 
-from models import User, WebAuthnCredential, TwitterAccount, PostKey, UserSession, TweetLog
+from models import User, WebAuthnCredential, TwitterAccount, PostKey, UserSession, TweetLog, TelegramAccount, TelegramChannel
 from safety import SafetyFilter, SafetyLevel
 from config import get_settings
 from database import get_db, engine, Base
@@ -50,9 +50,12 @@ app.add_middleware(
     https_only=False
 )
 
-# Now import the router after middleware is set up
+# Import and include routers
 from webauthn_routes import router as webauthn_router
+from telegram_routes import router as telegram_router
+
 app.include_router(webauthn_router)
+app.include_router(telegram_router)
 
 # Pydantic models
 class TwitterCookieSubmit(BaseModel):
@@ -83,6 +86,14 @@ async def submit_cookie_page(request: Request):
 async def login_page(request: Request):
     return templates.TemplateResponse("webauthn_login.html", {"request": request})
 
+@app.get("/add-telegram", response_class=HTMLResponse)
+async def add_telegram_page(request: Request):
+    # Check if user is authenticated
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("add_telegram.html", {"request": request})
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
@@ -98,13 +109,20 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         TwitterAccount.user_id == user_id
     ).all()
     
-    post_keys = []
-    for account in twitter_accounts:
-        keys = db.query(PostKey).filter(
-            PostKey.twitter_id == account.twitter_id,
-            PostKey.is_active == True
+    telegram_accounts = db.query(TelegramAccount).filter(
+        TelegramAccount.user_id == user_id
+    ).all()
+    
+    # Get channels for each Telegram account
+    for account in telegram_accounts:
+        account.channels = db.query(TelegramChannel).filter(
+            TelegramChannel.telegram_account_id == account.id
         ).all()
-        post_keys.extend(keys)
+    
+    post_keys = db.query(PostKey).filter(
+        PostKey.user_id == user_id,
+        PostKey.is_active == True
+    ).all()
     
     return templates.TemplateResponse(
         "dashboard.html",
@@ -112,6 +130,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "user": user,
             "twitter_accounts": twitter_accounts,
+            "telegram_accounts": telegram_accounts,
             "post_keys": post_keys
         }
     )
