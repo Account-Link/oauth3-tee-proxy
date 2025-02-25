@@ -35,4 +35,5 @@ ENV/
 *.db
 .env
 oauth3.db
-*.log 
+*.log
+docker-compose-prod.yml

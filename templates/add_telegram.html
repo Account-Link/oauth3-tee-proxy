@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Add Telegram Account - OAuth3</title>
+        <link rel="stylesheet" href="/static/css/styles.css">
+        <style>
+            .container {
+                max-width: 600px;
+                margin: 40px auto;
+                padding: 20px;
+            }
+            
+            .form-section {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .form-group {
+                margin-bottom: 20px;
+            }
+            
+            .form-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            
+            .form-group input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+            
+            .button {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                width: 100%;
+            }
+            
+            .button:hover {
+                background: #0056b3;
+            }
+            
+            .back-link {
+                display: inline-block;
+                margin-bottom: 20px;
+                color: #007bff;
+                text-decoration: none;
+            }
+            
+            .back-link:hover {
+                text-decoration: underline;
+            }
+            
+            .error {
+                color: #dc3545;
+                margin-top: 5px;
+                display: none;
+            }
+            
+            #verificationForm {
+                display: none;
+            }
+            
+            #passwordGroup {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
+            
+            <div class="form-section">
+                <h1>Add Telegram Account</h1>
+                <p>Please enter your phone number to receive a verification code.</p>
+                
+                <form id="telegramForm">
+                    <div class="form-group">
+                        <label for="phoneNumber">Phone Number:</label>
+                        <input type="tel" id="phoneNumber" name="phoneNumber" required 
+                               placeholder="+1234567890">
+                        <div class="error" id="phoneError"></div>
+                    </div>
+                    <button type="submit" class="button">Request Code</button>
+                </form>
+
+                <form id="verificationForm">
+                    <div class="form-group">
+                        <label for="verificationCode">Verification Code:</label>
+                        <input type="text" id="verificationCode" name="verificationCode" required>
+                        <div class="error" id="codeError"></div>
+                    </div>
+                    <div class="form-group" id="passwordGroup">
+                        <label for="password">Two-Factor Password:</label>
+                        <input type="password" id="password" name="password">
+                        <div class="error" id="passwordError"></div>
+                    </div>
+                    <button type="submit" class="button">Verify</button>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById('telegramForm').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const phoneNumber = document.getElementById('phoneNumber').value;
+                const phoneError = document.getElementById('phoneError');
+                
+                try {
+                    const response = await fetch('/api/telegram/request-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ phone_number: phoneNumber })
+                    });
+                    
+                    if (response.ok) {
+                        document.getElementById('telegramForm').style.display = 'none';
+                        document.getElementById('verificationForm').style.display = 'block';
+                    } else {
+                        const error = await response.json();
+                        phoneError.textContent = error.detail || 'Failed to request code';
+                        phoneError.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    phoneError.textContent = 'Error requesting code';
+                    phoneError.style.display = 'block';
+                }
+            });
+
+            document.getElementById('verificationForm').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const code = document.getElementById('verificationCode').value;
+                const password = document.getElementById('password').value;
+                const phoneNumber = document.getElementById('phoneNumber').value;
+                const codeError = document.getElementById('codeError');
+                
+                try {
+                    const response = await fetch('/api/telegram/verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            phone_number: phoneNumber,
+                            code: code,
+                            password: password || undefined
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        window.location.href = '/dashboard';
+                    } else {
+                        const error = await response.json();
+                        if (error.detail === 'Two-factor authentication is enabled. Password required.') {
+                            document.getElementById('passwordGroup').style.display = 'block';
+                            codeError.style.display = 'none';
+                        } else {
+                            codeError.textContent = error.detail || 'Failed to verify code';
+                            codeError.style.display = 'block';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    codeError.textContent = 'Error verifying code';
+                    codeError.style.display = 'block';
+                }
+            });
+        </script>
+    </body>
+</html> 

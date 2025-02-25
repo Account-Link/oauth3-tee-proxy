@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-here"  # Change this in production!
 
+    # Telegram Settings
+    TELEGRAM_API_ID: str
+    TELEGRAM_API_HASH: str
+    TELEGRAM_SESSION_PATH: str = "./telegram_sessions"
+
     class Config:
         env_file = ".env"
 

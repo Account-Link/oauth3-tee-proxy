@@ -8,5 +8,7 @@ services:
       ./
     environment:
       - DATABASE_URL=sqlite:///./oauth3.db
+    env_file:
+      - .env
     ports:
       - 8000:8000

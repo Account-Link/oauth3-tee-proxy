@@ -2,7 +2,7 @@
 <html>
     <head>
         <title>Dashboard - OAuth3 Twitter Cookie</title>
-        <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+        <link rel="stylesheet" href="/static/css/styles.css">
         <style>
             /* Additional dashboard-specific styles */
             .dashboard-section {
@@ -62,6 +62,38 @@
         </div>
 
         <div class="dashboard-section">
+            <h2>Your Telegram Account</h2>
+            {% if telegram_accounts %}
+                <ul class="account-list">
+                    {% for account in telegram_accounts %}
+                        <li class="account-item">
+                            <span>Phone: {{ account.phone_number }}</span>
+                            <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
+                            <button class="button" onclick="refreshChannels('{{ account.id }}')">Refresh Channels</button>
+                        </li>
+                        {% if account.channels %}
+                            <ul class="channel-list">
+                                {% for channel in account.channels %}
+                                    <li class="channel-item">
+                                        <span>{{ channel.name }}</span>
+                                        {% if channel.username %}
+                                            <span>@{{ channel.username }}</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No channels found.</p>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No Telegram account linked yet.</p>
+            {% endif %}
+            <a href="/add-telegram" class="button">Add Telegram Account</a>
+        </div>
+
+        <div class="dashboard-section">
             <h2>Post Keys</h2>
             {% if post_keys %}
                 <ul class="key-list">
@@ -90,7 +122,6 @@
             async function createKey(event) {
                 event.preventDefault();
                 const name = document.getElementById('keyName').value;
-                
                 try {
                     const response = await fetch('/api/keys', {
                         method: 'POST',
@@ -99,36 +130,46 @@
                         },
                         body: `name=${encodeURIComponent(name)}`
                     });
-                    
                     if (response.ok) {
                         window.location.reload();
                     } else {
-                        const error = await response.json();
-                        alert(error.detail || 'Failed to create key');
+                        alert('Failed to create key');
                     }
                 } catch (error) {
-                    alert('Error creating key: ' + error.message);
+                    console.error('Error:', error);
+                    alert('Error creating key');
                 }
             }
 
             async function revokeKey(keyId) {
-                if (!confirm('Are you sure you want to revoke this key?')) {
-                    return;
-                }
-                
+                if (!confirm('Are you sure you want to revoke this key?')) return;
                 try {
                     const response = await fetch(`/api/keys/${keyId}`, {
                         method: 'DELETE'
                     });
-                    
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to revoke key');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error revoking key');
+                }
+            }
+
+            async function refreshChannels(accountId) {
+                try {
+                    const response = await fetch('/api/telegram/channels');
                     if (response.ok) {
                         window.location.reload();
                     } else {
                         const error = await response.json();
-                        alert(error.detail || 'Failed to revoke key');
+                        alert(error.detail || 'Failed to refresh channels');
                     }
                 } catch (error) {
-                    alert('Error revoking key: ' + error.message);
+                    console.error('Error:', error);
+                    alert('Error refreshing channels');
                 }
             }
         </script>

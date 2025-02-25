@@ -18,6 +18,8 @@ class User(Base):
     # Relationships
     credentials = relationship("WebAuthnCredential", back_populates="user")
     twitter_accounts = relationship("TwitterAccount", back_populates="user")
+    telegram_accounts = relationship("TelegramAccount", back_populates="user")
+    post_keys = relationship("PostKey", back_populates="user")
 
 class WebAuthnCredential(Base):
     __tablename__ = "webauthn_credentials"
@@ -45,14 +47,40 @@ class TwitterAccount(Base):
     
     # Relationships
     user = relationship("User", back_populates="twitter_accounts")
-    post_keys = relationship("PostKey", back_populates="twitter_account")
     sessions = relationship("UserSession", back_populates="twitter_account")
+
+class TelegramAccount(Base):
+    __tablename__ = "telegram_accounts"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"))
+    phone_number = Column(String, nullable=False)
+    session_string = Column(String, nullable=True)  # Store Telethon session string
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="telegram_accounts")
+    channels = relationship("TelegramChannel", back_populates="telegram_account")
+
+class TelegramChannel(Base):
+    __tablename__ = "telegram_channels"
+    
+    id = Column(String, primary_key=True)  # Telegram's channel ID
+    telegram_account_id = Column(String, ForeignKey("telegram_accounts.id"))
+    name = Column(String, nullable=False)
+    username = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship
+    telegram_account = relationship("TelegramAccount", back_populates="channels")
 
 class PostKey(Base):
     __tablename__ = "post_keys"
     
     key_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    twitter_id = Column(String, ForeignKey("twitter_accounts.twitter_id"))
+    user_id = Column(String, ForeignKey("users.id"))  # Changed from twitter_id to user_id
     name = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -60,7 +88,7 @@ class PostKey(Base):
     can_bypass_safety = Column(Boolean, default=False)
     
     # Relationship
-    twitter_account = relationship("TwitterAccount", back_populates="post_keys")
+    user = relationship("User", back_populates="post_keys")
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
