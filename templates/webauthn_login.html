@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login with Passkey</title>
+    <script>
+        // Base64URL decoder helper
+        function base64urlDecode(input) {
+            // Convert base64url to base64
+            input = input.replace(/-/g, '+').replace(/_/g, '/');
+            // Add padding if needed
+            const pad = input.length % 4;
+            if (pad) {
+                input += '='.repeat(4 - pad);
+            }
+            return atob(input);
+        }
+        
+        async function startAuthentication() {
+            const username = document.getElementById('username').value;
+
+            try {
+                // Get authentication options from server
+                const optionsResponse = await fetch('/webauthn/login/begin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username
+                    })
+                });
+
+                if (!optionsResponse.ok) {
+                    throw new Error('Failed to get authentication options');
+                }
+
+                const options = JSON.parse(await optionsResponse.json());
+                
+                // Convert base64url strings to ArrayBuffer
+                options.challenge = Uint8Array.from(base64urlDecode(options.challenge), c => c.charCodeAt(0));
+                
+                if (options.allowCredentials) {
+                    options.allowCredentials = options.allowCredentials.map(cred => ({
+                        ...cred,
+                        id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
+                    }));
+                }
+
+                // Get credentials
+                const credential = await navigator.credentials.get({
+                    publicKey: options
+                });
+
+                // Convert ArrayBuffer to base64url for sending to server
+                const credentialResponse = {
+                    credential: {
+                        id: credential.id,
+                        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+                        response: {
+                            authenticatorData: btoa(String.fromCharCode(...new Uint8Array(credential.response.authenticatorData))),
+                            clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+                            signature: btoa(String.fromCharCode(...new Uint8Array(credential.response.signature))),
+                            userHandle: credential.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(credential.response.userHandle))) : null,
+                        },
+                        type: credential.type
+                    },
+                    client_data: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
+                };
+
+                // Send response to server
+                const verificationResponse = await fetch('/webauthn/login/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentialResponse)
+                });
+
+                if (!verificationResponse.ok) {
+                    throw new Error('Failed to verify authentication');
+                }
+
+                const result = await verificationResponse.json();
+                alert('Login successful!');
+                window.location.href = '/dashboard';
+
+            } catch (error) {
+                console.error('Error during authentication:', error);
+                alert('Login failed: ' + error.message);
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Login with Passkey</h1>
+    <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" required>
+    </div>
+    <button onclick="startAuthentication()">Login</button>
+</body>
+</html> 

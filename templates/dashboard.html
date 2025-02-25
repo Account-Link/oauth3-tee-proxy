@@ -1,0 +1,86 @@
+<html>
+    <head>
+        <title>Dashboard</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .section {
+                margin-bottom: 30px;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+            }
+            button {
+                background-color: #0066cc;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #0052a3;
+            }
+            .key-list {
+                list-style: none;
+                padding: 0;
+            }
+            .key-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .add-account {
+                display: inline-block;
+                margin-top: 20px;
+                text-decoration: none;
+                color: white;
+                background-color: #0066cc;
+                padding: 10px 20px;
+                border-radius: 4px;
+            }
+            .add-account:hover {
+                background-color: #0052a3;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Welcome, {{ user.display_name or user.username }}!</h1>
+        
+        <div class="section">
+            <h2>Your Twitter Accounts</h2>
+            {% for account in twitter_accounts %}
+            <div class="twitter-account">
+                <h3>Twitter ID: {{ account.twitter_id }}</h3>
+            </div>
+            {% endfor %}
+            <a href="/submit-cookie" class="add-account">Add Twitter Account</a>
+        </div>
+        
+        <div class="section">
+            <h2>Post Keys</h2>
+            <form action="/api/keys" method="POST">
+                <input type="text" name="name" placeholder="Key Name" required>
+                <button type="submit">Create New Key</button>
+            </form>
+            
+            <h3>Your Keys</h3>
+            <ul class="key-list">
+                {% for key in post_keys %}
+                <li class="key-item">
+                    <span>{{ key.name }} ({{ key.key_id }})</span>
+                    <form action="/api/keys/{{ key.key_id }}" method="POST" style="display:inline">
+                        <button type="submit">Revoke</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </body>
+</html> 

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register with Passkey</title>
+    <script>
+        // Base64URL decoder helper
+        function base64urlDecode(input) {
+            // Convert base64url to base64
+            input = input.replace(/-/g, '+').replace(/_/g, '/');
+            // Add padding if needed
+            const pad = input.length % 4;
+            if (pad) {
+                input += '='.repeat(4 - pad);
+            }
+            return atob(input);
+        }
+
+        async function startRegistration() {
+            const username = document.getElementById('username').value;
+            const displayName = document.getElementById('display_name').value;
+
+            try {
+                // Get registration options from server
+                const optionsResponse = await fetch('/webauthn/register/begin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        display_name: displayName
+                    })
+                });
+
+                if (!optionsResponse.ok) {
+                    throw new Error('Failed to get registration options');
+                }
+
+                const options = JSON.parse(await optionsResponse.text());
+                
+                // Convert base64url strings to ArrayBuffer
+                console.log("challenge", options.challenge);
+                options.user.id = Uint8Array.from(base64urlDecode(options.user.id), c => c.charCodeAt(0));
+                options.challenge = Uint8Array.from(base64urlDecode(options.challenge), c => c.charCodeAt(0));
+
+                // Create credentials
+                const credential = await navigator.credentials.create({
+                    publicKey: options
+                });
+
+                // Convert ArrayBuffer to base64url for sending to server
+                const credentialResponse = {
+                    credential: {
+                        id: credential.id,
+                        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+                        response: {
+                            attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
+                            clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+                        },
+                        type: credential.type,
+                        transports: credential.response.getTransports ? credential.response.getTransports() : [],
+                    },
+                    client_data: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
+                };
+
+                // Send response to server
+                const verificationResponse = await fetch('/webauthn/register/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentialResponse)
+                });
+
+                if (!verificationResponse.ok) {
+                    throw new Error('Failed to verify registration');
+                }
+
+                const result = await verificationResponse.json();
+                alert('Registration successful! You can now sign in with your passkey.');
+                window.location.href = '/dashboard';
+
+            } catch (error) {
+                console.error('Error during registration:', error);
+                alert('Registration failed: ' + error.message);
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Register with Passkey</h1>
+    <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" required>
+    </div>
+    <div class="form-group">
+        <label for="display_name">Display Name (optional):</label>
+        <input type="text" id="display_name">
+    </div>
+    <button onclick="startRegistration()">Register</button>
+</body>
+</html> 
