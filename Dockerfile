@@ -14,5 +14,13 @@ ADD twitter_client.py ./
 ADD models.py ./
 ADD config.py ./
 ADD safety.py ./
+ADD database.py ./
+ADD telegram_client.py ./
+ADD telegram_routes.py ./
+ADD webauthn_routes.py ./
+
+# Add template and static directories
+ADD templates/ ./templates/
+ADD static/ ./static/
 
 CMD [ "uv", "run", "main.py" ]

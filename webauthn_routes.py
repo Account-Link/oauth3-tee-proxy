@@ -38,9 +38,9 @@ router = APIRouter()
 settings = get_settings()
 
 # Configuration
-RP_ID = "localhost"  # Change this to your domain in production
-RP_NAME = "OAuth3 Twitter Cookie"
-ORIGIN = "http://localhost:8000"  # Change this to your origin in production
+RP_ID = settings.WEBAUTHN_RP_ID
+RP_NAME = settings.WEBAUTHN_RP_NAME
+ORIGIN = settings.WEBAUTHN_ORIGIN
 
 class RegistrationSession:
     """Handles temporary registration data in the session"""

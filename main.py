@@ -324,8 +324,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8000,
-        workers=1,  # Single worker
         log_level="debug",
-        reload=True,  # Enable auto-reload
         use_colors=True
     ) 
