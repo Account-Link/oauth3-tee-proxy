@@ -1,0 +1,12 @@
+services:
+  oauth3-twitter:
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+    image:
+      socrates1024/oauth3-twitter
+    build:
+      ./
+    environment:
+      - DATABASE_URL=sqlite:///./oauth3.db
+    ports:
+      - 8000:8000
