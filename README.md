@@ -1,6 +1,6 @@
 # OAuth3 Twitter Cookie Service
 
-A service for managing Twitter cookies and post keys with safety filtering and OAuth2 token support.
+A service for managing Twitter cookies with safety filtering and OAuth2 token support.
 
 AI Agents are used to posting with a Twitter `auth_token` using the undocumented API. This is as powerful as being logged in with the user's twitter account.
 
@@ -17,15 +17,9 @@ So, we want to have a simple non-custodial Dstack app that gives limited access 
    
 <img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
 
-## 2. Create Access Tokens
+## 2. Create OAuth2 Tokens
 
-You can either create a Post Key (legacy) or use OAuth2 tokens with scopes for more granular control.
-
-### Post Keys (Legacy)
-<img src="https://github.com/user-attachments/assets/b8cc368d-4d67-486c-8e14-85f3e375f9ba" width="50%"/>
-
-### OAuth2 Tokens
-OAuth2 tokens provide more granular control through scopes:
+OAuth2 tokens provide granular control through scopes:
 - `tweet.post` - Permission to post tweets
 - `telegram.post_any` - Permission to post any message to Telegram
 
@@ -52,7 +46,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## Web Interface
 - `GET /` - Web interface for submitting Twitter cookie
-- `GET /dashboard` - Manage post keys and OAuth2 tokens
+- `GET /dashboard` - Manage OAuth2 tokens
 
 ## API Endpoints
 
@@ -61,13 +55,11 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
   - Parameters:
     - `scopes` (form field): Space-separated list of requested scopes (e.g. "tweet.post telegram.post_any")
 
-### Legacy API Endpoints
+### Cookie Management
 - `POST /api/cookie` - Submit Twitter cookie
-- `POST /api/keys` - Create new post key
-- `DELETE /api/keys/{key_id}` - Revoke post key
 
 ### Protected Endpoints
-- `POST /api/tweet` - Post tweet (supports both OAuth2 and post keys)
+- `POST /api/tweet` - Post tweet (requires OAuth2 token)
 
 # Example Usage
 
@@ -107,33 +99,6 @@ curl -X POST http://localhost:8000/api/tweet \
   }'
 ```
 
-## Legacy Post Key Usage
-
-### Create Post Key
-```bash
-curl -X POST http://localhost:8000/api/keys \
-  -H "Content-Type: application/json" \
-  -H "Cookie: session=your_session_token" \
-  -d '{"name": "My Bot Key"}'
-```
-
-### Post Tweet with Post Key
-```bash
-curl -X POST http://localhost:8000/api/tweet \
-  -H "Content-Type: application/json" \
-  -d '{
-    "post_key": "your_post_key",
-    "text": "Hello, World!",
-    "bypass_safety": false
-  }'
-```
-
-### Revoke Post Key
-```bash
-curl -X DELETE http://localhost:8000/api/keys/your_post_key \
-  -H "Cookie: session=your_session_token"
-```
-
 # OAuth2 Scopes
 
 The following scopes are available:
@@ -145,7 +110,7 @@ OAuth2 tokens:
 - Are tied to the account owner's session
 - Have a 24-hour expiration by default
 - Support multiple scopes per token
-- Provide more granular access control than post keys
+- Provide granular access control
 
 ### Acknowledgments
 Josh @hashwarlock for PRD review and architecture diagram 

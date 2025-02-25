@@ -3,10 +3,14 @@ from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import uuid
+import logging
 
 from models import OAuth2Token, User
 from database import get_db
 from config import get_settings
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
@@ -27,9 +31,6 @@ async def verify_token_and_scopes(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):  
-    import sys
-    print(f"Verifying token: {token}", flush=True, file=sys.stderr)
-    print(f"Requested scopes: {security_scopes.scopes}", flush=True, file=sys.stderr)
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
     else:
@@ -48,16 +49,19 @@ async def verify_token_and_scopes(
     ).first()
     
     if not token_record:
+        logger.warning(f"Invalid or inactive token attempted to be used")
         raise credentials_exception
 
     # Check if token has expired
     if token_record.expires_at and token_record.expires_at < datetime.utcnow():
+        logger.warning(f"Expired token attempted to be used")
         raise credentials_exception
 
     # Verify scopes
     token_scopes = set(token_record.scopes.split())
     for scope in security_scopes.scopes:
         if scope not in token_scopes:
+            logger.warning(f"Token missing required scope: {scope}")
             raise HTTPException(
                 status_code=401,
                 detail="Not enough permissions",
