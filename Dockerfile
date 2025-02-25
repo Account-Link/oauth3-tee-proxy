@@ -18,6 +18,7 @@ ADD database.py ./
 ADD telegram_client.py ./
 ADD telegram_routes.py ./
 ADD webauthn_routes.py ./
+ADD oauth2_routes.py ./
 
 # Add template and static directories
 ADD templates/ ./templates/

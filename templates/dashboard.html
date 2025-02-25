@@ -11,11 +11,11 @@
                 border: 1px solid #ddd;
                 border-radius: 8px;
             }
-            .account-list, .key-list {
+            .account-list, .token-list {
                 list-style: none;
                 padding: 0;
             }
-            .account-item, .key-item {
+            .account-item, .token-item {
                 padding: 10px;
                 margin: 5px 0;
                 background: #f5f5f5;
@@ -24,10 +24,10 @@
                 justify-content: space-between;
                 align-items: center;
             }
-            .key-form {
+            .token-form {
                 margin-top: 20px;
             }
-            .key-form input {
+            .token-form input, .token-form select {
                 padding: 8px;
                 border: 1px solid #ddd;
                 border-radius: 4px;
@@ -38,6 +38,29 @@
             }
             .delete-button:hover {
                 background-color: #c82333;
+            }
+            .scope-list {
+                margin: 5px 0;
+                font-size: 0.9em;
+                color: #666;
+            }
+            .token-details {
+                flex-grow: 1;
+                margin-right: 20px;
+            }
+            .token-actions {
+                display: flex;
+                gap: 10px;
+            }
+            .copy-button {
+                background-color: #28a745;
+            }
+            .copy-button:hover {
+                background-color: #218838;
+            }
+            .token-expires {
+                font-size: 0.8em;
+                color: #666;
             }
         </style>
     </head>
@@ -94,68 +117,92 @@
         </div>
 
         <div class="dashboard-section">
-            <h2>Post Keys</h2>
-            {% if post_keys %}
-                <ul class="key-list">
-                    {% for key in post_keys %}
-                        <li class="key-item">
-                            <div>
-                                <strong>{{ key.name }}</strong>
-                                <br>
-                                <small>Key ID: {{ key.key_id }}</small>
+            <h2>OAuth2 Access Tokens</h2>
+            {% if oauth2_tokens %}
+                <ul class="token-list">
+                    {% for token in oauth2_tokens %}
+                        <li class="token-item">
+                            <div class="token-details">
+                                <div class="scope-list">
+                                    <strong>Scopes:</strong> {{ token.scopes }}
+                                </div>
+                                <div class="token-expires">
+                                    Expires: {{ token.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                                </div>
                             </div>
-                            <button class="button delete-button" onclick="revokeKey('{{ key.key_id }}')">Revoke</button>
+                            <div class="token-actions">
+                                <button class="button copy-button" onclick="copyToken('{{ token.access_token }}')">Copy Token</button>
+                                <button class="button delete-button" onclick="revokeToken('{{ token.token_id }}')">Revoke</button>
+                            </div>
                         </li>
                     {% endfor %}
                 </ul>
             {% else %}
-                <p>No active post keys.</p>
+                <p>No active OAuth2 tokens.</p>
             {% endif %}
 
-            <form class="key-form" onsubmit="createKey(event)">
-                <input type="text" id="keyName" placeholder="Key name" required>
-                <button type="submit" class="button">Create Key</button>
+            <form class="token-form" onsubmit="createToken(event)">
+                <select id="tokenScopes" multiple required>
+                    {% for scope in available_scopes %}
+                        <option value="{{ scope }}">{{ scope }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="button">Create Token</button>
             </form>
         </div>
 
         <script>
-            async function createKey(event) {
+            async function createToken(event) {
                 event.preventDefault();
-                const name = document.getElementById('keyName').value;
+                const scopes = Array.from(document.getElementById('tokenScopes').selectedOptions)
+                    .map(option => option.value)
+                    .join(' ');
+                
                 try {
-                    const response = await fetch('/api/keys', {
+                    const response = await fetch('/token', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: `name=${encodeURIComponent(name)}`
+                        body: `scopes=${encodeURIComponent(scopes)}`
                     });
                     if (response.ok) {
                         window.location.reload();
                     } else {
-                        alert('Failed to create key');
+                        const error = await response.json();
+                        alert(error.detail || 'Failed to create token');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('Error creating key');
+                    alert('Error creating token');
                 }
             }
 
-            async function revokeKey(keyId) {
-                if (!confirm('Are you sure you want to revoke this key?')) return;
+            async function revokeToken(tokenId) {
+                if (!confirm('Are you sure you want to revoke this token?')) return;
                 try {
-                    const response = await fetch(`/api/keys/${keyId}`, {
+                    const response = await fetch(`/token/${tokenId}`, {
                         method: 'DELETE'
                     });
                     if (response.ok) {
                         window.location.reload();
                     } else {
-                        alert('Failed to revoke key');
+                        const error = await response.json();
+                        alert(error.detail || 'Failed to revoke token');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('Error revoking key');
+                    alert('Error revoking token');
                 }
+            }
+
+            function copyToken(token) {
+                navigator.clipboard.writeText(token).then(() => {
+                    alert('Token copied to clipboard!');
+                }).catch(err => {
+                    console.error('Error copying token:', err);
+                    alert('Failed to copy token');
+                });
             }
 
             async function refreshChannels(accountId) {

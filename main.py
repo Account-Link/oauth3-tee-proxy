@@ -1,23 +1,49 @@
-from fastapi import FastAPI, HTTPException, Depends, Cookie, Response, Form, Request
+# Standard library imports
+import json
+import logging
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+
+# Third-party imports
+from fastapi import (
+    FastAPI, 
+    HTTPException, 
+    Depends, 
+    Cookie, 
+    Response, 
+    Form, 
+    Request, 
+    Security
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
-from datetime import datetime, timedelta
-import uuid
-from typing import Optional
-from pydantic import BaseModel
-import json
-import traceback
-import logging
 
-from models import User, WebAuthnCredential, TwitterAccount, PostKey, UserSession, TweetLog, TelegramAccount, TelegramChannel
-from safety import SafetyFilter, SafetyLevel
+# Local imports
 from config import get_settings
 from database import get_db, engine, Base
+from models import (
+    User, 
+    WebAuthnCredential, 
+    TwitterAccount, 
+    UserSession, 
+    TweetLog, 
+    TelegramAccount, 
+    TelegramChannel
+)
+from oauth2_routes import (
+    OAuth2Token,
+    router as oauth2_router, 
+    verify_token_and_scopes
+)
+from safety import SafetyFilter, SafetyLevel
 from twitter_client import TwitterClient
 
+# Apply patches
 from patches import apply_patches
 apply_patches()
 
@@ -53,19 +79,19 @@ app.add_middleware(
 # Import and include routers
 from webauthn_routes import router as webauthn_router
 from telegram_routes import router as telegram_router
+from oauth2_routes import router as oauth2_router
 
 app.include_router(webauthn_router)
 app.include_router(telegram_router)
+app.include_router(oauth2_router)
 
 # Pydantic models
 class TwitterCookieSubmit(BaseModel):
+    """Model for submitting Twitter cookie."""
     twitter_cookie: str
 
-class PostKeyCreate(BaseModel):
-    name: str
-
 class TweetRequest(BaseModel):
-    post_key: str
+    """Model for tweet requests."""
     text: str
     bypass_safety: bool = False
 
@@ -119,9 +145,11 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             TelegramChannel.telegram_account_id == account.id
         ).all()
     
-    post_keys = db.query(PostKey).filter(
-        PostKey.user_id == user_id,
-        PostKey.is_active == True
+    # Get active OAuth2 tokens
+    oauth2_tokens = db.query(OAuth2Token).filter(
+        OAuth2Token.user_id == user_id,
+        OAuth2Token.is_active == True,
+        OAuth2Token.expires_at > datetime.utcnow()
     ).all()
     
     return templates.TemplateResponse(
@@ -131,7 +159,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "twitter_accounts": twitter_accounts,
             "telegram_accounts": telegram_accounts,
-            "post_keys": post_keys
+            "oauth2_tokens": oauth2_tokens,
+            "available_scopes": settings.OAUTH2_ALLOWED_SCOPES.split()
         }
     )
 
@@ -143,16 +172,23 @@ async def submit_cookie(
     twitter_cookie: str = Form(...),
     request: Request = None
 ):
-    # Check if user is authenticated
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    """
+    Submit and validate a Twitter cookie.
+    Links the Twitter account to the authenticated user.
+    """
+    if not request.session.get("user_id"):
+        raise HTTPException(
+            status_code=401, 
+            detail="Authentication required. Please log in first."
+        )
     
     try:
-        # Create Twitter client and validate cookie
         client = TwitterClient.from_cookie_string(twitter_cookie)
         if not await client.validate_cookie():
-            raise HTTPException(status_code=400, detail="Invalid Twitter cookie")
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid Twitter cookie. Please provide a valid cookie."
+            )
         
         # Get Twitter ID from the cookie
         twitter_id = await client.get_user_id()
@@ -163,160 +199,97 @@ async def submit_cookie(
         ).first()
         
         if existing_account:
-            if existing_account.user_id and existing_account.user_id != user_id:
+            if existing_account.user_id and existing_account.user_id != request.session.get("user_id"):
                 raise HTTPException(status_code=400, detail="Twitter account already linked to another user")
             existing_account.twitter_cookie = twitter_cookie
             existing_account.updated_at = datetime.utcnow()
-            existing_account.user_id = user_id
+            existing_account.user_id = request.session.get("user_id")
         else:
             account = TwitterAccount(
                 twitter_id=twitter_id,
                 twitter_cookie=twitter_cookie,
-                user_id=user_id
+                user_id=request.session.get("user_id")
             )
             db.add(account)
         
         db.commit()
-        logger.info(f"Successfully linked Twitter account {twitter_id} to user {user_id}")
+        logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
         return {"status": "success", "message": "Twitter account linked successfully"}
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error while processing cookie: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Invalid cookie format: {str(e)}")
+        logger.error(f"Invalid cookie format: {str(e)}")
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid cookie format. Please check the cookie structure."
+        )
     except Exception as e:
-        logger.error(f"Error in submit_cookie: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/keys")
-async def create_post_key(
-    request: Request,
-    name: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    # Check if user is authenticated via session
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    # Get user's Twitter accounts
-    twitter_accounts = db.query(TwitterAccount).filter(
-        TwitterAccount.user_id == user_id
-    ).first()
-    
-    if not twitter_accounts:
-        raise HTTPException(status_code=400, detail="No Twitter account linked")
-
-    # Check if max keys reached
-    key_count = db.query(PostKey).filter(
-        PostKey.twitter_id == twitter_accounts.twitter_id,
-        PostKey.is_active == True
-    ).count()
-    
-    if key_count >= settings.POST_KEY_MAX_PER_ACCOUNT:
-        raise HTTPException(status_code=400, detail="Maximum number of post keys reached")
-    
-    post_key = PostKey(
-        twitter_id=twitter_accounts.twitter_id,
-        name=name
-    )
-    db.add(post_key)
-    db.commit()
-    
-    return {"status": "success", "key_id": post_key.key_id}
-
-@app.delete("/api/keys/{key_id}")
-async def revoke_post_key(
-    key_id: str,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    # Check if user is authenticated via session
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    # Get user's Twitter accounts
-    twitter_account = db.query(TwitterAccount).filter(
-        TwitterAccount.user_id == user_id
-    ).first()
-    
-    if not twitter_account:
-        raise HTTPException(status_code=400, detail="No Twitter account linked")
-    
-    post_key = db.query(PostKey).filter(
-        PostKey.key_id == key_id,
-        PostKey.twitter_id == twitter_account.twitter_id
-    ).first()
-    
-    if not post_key:
-        raise HTTPException(status_code=404, detail="Post key not found")
-    
-    post_key.is_active = False
-    db.commit()
-    
-    return {"status": "success", "message": "Post key revoked"}
+        logger.error(f"Error processing cookie submission: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail="An unexpected error occurred while processing your request."
+        )
 
 @app.post("/api/tweet")
 async def post_tweet(
     tweet_data: TweetRequest,
+    token: OAuth2Token = Security(verify_token_and_scopes, scopes=["tweet.post"]),
     db: Session = Depends(get_db)
 ):
     try:
-        post_key = db.query(PostKey).filter(
-            PostKey.key_id == tweet_data.post_key,
-            PostKey.is_active == True
-        ).first()
-        
-        if not post_key:
-            raise HTTPException(status_code=404, detail="Invalid or inactive post key")
-        
-        # Get the associated Twitter account
         twitter_account = db.query(TwitterAccount).filter(
-            TwitterAccount.twitter_id == post_key.twitter_id
+            TwitterAccount.user_id == token.user_id
         ).first()
         
         if not twitter_account:
+            logger.error(f"No Twitter account found for user {token.user_id}")
             raise HTTPException(status_code=404, detail="Twitter account not found")
         
         # Safety check
-        if settings.SAFETY_FILTER_ENABLED and not (post_key.can_bypass_safety and tweet_data.bypass_safety):
-            safety_filter = SafetyFilter(level=SafetyLevel(post_key.safety_level))
+        if settings.SAFETY_FILTER_ENABLED and not tweet_data.bypass_safety:
+            safety_filter = SafetyFilter(level=SafetyLevel.MODERATE)
             is_safe, reason = await safety_filter.check_tweet(tweet_data.text)
             
             if not is_safe:
-                # Log the safety check failure
-                tweet_log = TweetLog(
-                    post_key_id=post_key.key_id,
-                    tweet_text=tweet_data.text,
-                    safety_check_result=False,
-                    safety_check_message=reason
-                )
-                db.add(tweet_log)
-                db.commit()
-                
-                logger.warning(f"Tweet failed safety check for post_key {post_key.key_id}: {reason}")
+                await log_failed_tweet(db, token.user_id, tweet_data.text, reason)
                 raise HTTPException(status_code=400, detail=f"Tweet failed safety check: {reason}")
         
-        # Create Twitter client
-        client = TwitterClient.from_cookie_string(twitter_account.twitter_cookie)
-        
         # Post tweet
+        client = TwitterClient.from_cookie_string(twitter_account.twitter_cookie)
         tweet_id = await client.post_tweet(tweet_data.text)
         
         # Log successful tweet
-        tweet_log = TweetLog(
-            post_key_id=post_key.key_id,
-            tweet_text=tweet_data.text,
-            safety_check_result=True
-        )
-        db.add(tweet_log)
-        db.commit()
+        await log_successful_tweet(db, token.user_id, tweet_data.text, tweet_id)
         
-        logger.info(f"Successfully posted tweet {tweet_id} using post_key {post_key.key_id}")
         return {"status": "success", "tweet_id": tweet_id}
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in post_tweet: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error posting tweet for user {token.user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def log_failed_tweet(db: Session, user_id: int, tweet_text: str, reason: str):
+    """Log a failed tweet attempt."""
+    tweet_log = TweetLog(
+        user_id=user_id,
+        tweet_text=tweet_text,
+        safety_check_result=False,
+        safety_check_message=reason
+    )
+    db.add(tweet_log)
+    db.commit()
+    logger.warning(f"Tweet failed safety check for user {user_id}: {reason}")
+
+async def log_successful_tweet(db: Session, user_id: int, tweet_text: str, tweet_id: str):
+    """Log a successful tweet."""
+    tweet_log = TweetLog(
+        user_id=user_id,
+        tweet_text=tweet_text,
+        safety_check_result=True,
+        tweet_id=tweet_id
+    )
+    db.add(tweet_log)
+    db.commit()
+    logger.info(f"Successfully posted tweet {tweet_id} for user {user_id}")
 
 if __name__ == "__main__":
     import uvicorn
