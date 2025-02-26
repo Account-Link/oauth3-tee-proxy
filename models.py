@@ -110,6 +110,7 @@ class TweetLog(Base):
     post_key_id = Column(String, ForeignKey("post_keys.key_id"), nullable=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     tweet_text = Column(String, nullable=False)
+    tweet_id = Column(String, nullable=True)
     safety_check_result = Column(Boolean)
     safety_check_message = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
