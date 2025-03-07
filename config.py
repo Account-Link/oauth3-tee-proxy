@@ -33,7 +33,12 @@ class Settings(BaseSettings):
 
     # OAuth2 Settings
     OAUTH2_TOKEN_EXPIRE_HOURS: int = 24
-    OAUTH2_ALLOWED_SCOPES: str = "telegram.post_any tweet.post"
+    OAUTH2_ALLOWED_SCOPES: str = "telegram.post_any tweet.post twitter_oauth1.auth twitter_oauth1.tweet"
+    
+    # Twitter OAuth Settings
+    TWITTER_CONSUMER_KEY: str = ""
+    TWITTER_CONSUMER_SECRET: str = ""
+    TWITTER_OAUTH_CALLBACK_URL: str = "http://localhost:8000/auth/twitter/callback"
 
     class Config:
         env_file = ".env"

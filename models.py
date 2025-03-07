@@ -45,10 +45,25 @@ class TwitterAccount(Base):
     twitter_cookie = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    can_login = Column(Boolean, default=True)  # Whether this Twitter account can be used for login
     
     # Relationships
     user = relationship("User", back_populates="twitter_accounts")
     sessions = relationship("UserSession", back_populates="twitter_account")
+    oauth_credentials = relationship("TwitterOAuthCredential", back_populates="twitter_account")
+
+class TwitterOAuthCredential(Base):
+    __tablename__ = "twitter_oauth_credentials"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    twitter_account_id = Column(String, ForeignKey("twitter_accounts.twitter_id"))
+    oauth_token = Column(String, nullable=False)
+    oauth_token_secret = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship
+    twitter_account = relationship("TwitterAccount", back_populates="oauth_credentials")
 
 class TelegramAccount(Base):
     __tablename__ = "telegram_accounts"
@@ -131,4 +146,22 @@ class OAuth2Token(Base):
     user_id = Column(String, ForeignKey("users.id"))
     
     # Relationship
-    user = relationship("User", back_populates="oauth2_tokens") 
+    user = relationship("User", back_populates="oauth2_tokens")
+
+class OAuth2Request(Base):
+    __tablename__ = "oauth2_requests"
+    
+    request_id = Column(String, primary_key=True)
+    callback_url = Column(String, nullable=False)
+    scope = Column(String, nullable=False)
+    state = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    
+    def __init__(self, request_id, callback_url, scope, state, created_at, expires_at):
+        self.request_id = request_id
+        self.callback_url = callback_url
+        self.scope = scope
+        self.state = state
+        self.created_at = created_at
+        self.expires_at = expires_at 
