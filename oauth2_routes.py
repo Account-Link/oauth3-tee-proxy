@@ -8,6 +8,7 @@ import logging
 from models import OAuth2Token, User
 from database import get_db
 from config import get_settings
+from plugin_manager import plugin_manager
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -16,11 +17,18 @@ router = APIRouter()
 settings = get_settings()
 
 # Define available scopes
-OAUTH2_SCOPES = {
-    "telegram.post_any": "Permission to post any message to Telegram",
-    "tweet.post": "Permission to post tweets"
-}
+# Scopes will be populated dynamically from plugins
+OAUTH2_SCOPES = {}
 
+# Function to update scopes from plugins - will be called after plugins are loaded
+def update_scopes_from_plugins():
+    global OAUTH2_SCOPES
+    plugin_scopes = plugin_manager.get_all_plugin_scopes()
+    OAUTH2_SCOPES.update(plugin_scopes)
+    logger.info(f"Updated OAuth2 scopes from plugins: {len(OAUTH2_SCOPES)} scopes registered")
+
+# Define the oauth2_scheme with empty scopes for now
+# It will be updated after plugin loading
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
     scopes=OAUTH2_SCOPES

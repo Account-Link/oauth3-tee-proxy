@@ -3,7 +3,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # Third-party imports
 from fastapi import (
@@ -41,7 +41,9 @@ from oauth2_routes import (
     verify_token_and_scopes
 )
 from safety import SafetyFilter, SafetyLevel
-from twitter_client import TwitterClient
+
+# Plugin system
+from plugin_manager import plugin_manager
 
 # Apply patches
 from patches import apply_patches
@@ -54,7 +56,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="OAuth3 Twitter Cookie Service")
+app = FastAPI(title="OAuth3 TEE Proxy")
 templates = Jinja2Templates(directory="templates")
 
 # Mount static files
@@ -79,8 +81,15 @@ app.add_middleware(
 # Import and include routers
 from webauthn_routes import router as webauthn_router
 from telegram_routes import router as telegram_router
-from oauth2_routes import router as oauth2_router
+from oauth2_routes import router as oauth2_router, update_scopes_from_plugins
 
+# Initialize plugins first
+plugin_manager.discover_plugins()
+
+# Update OAuth2 scopes from plugins
+update_scopes_from_plugins()
+
+# Now include routers
 app.include_router(webauthn_router)
 app.include_router(telegram_router)
 app.include_router(oauth2_router)
@@ -152,6 +161,9 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         OAuth2Token.expires_at > datetime.utcnow()
     ).all()
     
+    # Get all available scopes from plugins
+    available_scopes = plugin_manager.get_all_plugin_scopes()
+    
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -160,7 +172,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "twitter_accounts": twitter_accounts,
             "telegram_accounts": telegram_accounts,
             "oauth2_tokens": oauth2_tokens,
-            "available_scopes": settings.OAUTH2_ALLOWED_SCOPES.split()
+            "available_scopes": available_scopes.keys()
         }
     )
 
@@ -183,15 +195,24 @@ async def submit_cookie(
         )
     
     try:
-        client = TwitterClient.from_cookie_string(twitter_cookie)
-        if not await client.validate_cookie():
+        # Get the Twitter auth plugin
+        twitter_auth = plugin_manager.create_authorization_plugin("twitter")
+        if not twitter_auth:
+            raise HTTPException(
+                status_code=500,
+                detail="Twitter plugin not available"
+            )
+        
+        # Parse and validate the cookie
+        credentials = twitter_auth.credentials_from_string(twitter_cookie)
+        if not await twitter_auth.validate_credentials(credentials):
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid Twitter cookie. Please provide a valid cookie."
             )
         
         # Get Twitter ID from the cookie
-        twitter_id = await client.get_user_id()
+        twitter_id = await twitter_auth.get_user_identifier(credentials)
         
         # Check if account already exists
         existing_account = db.query(TwitterAccount).filter(
@@ -252,9 +273,22 @@ async def post_tweet(
                 await log_failed_tweet(db, token.user_id, tweet_data.text, reason)
                 raise HTTPException(status_code=400, detail=f"Tweet failed safety check: {reason}")
         
+        # Get plugins
+        twitter_auth = plugin_manager.create_authorization_plugin("twitter")
+        twitter_resource = plugin_manager.create_resource_plugin("twitter")
+        
+        if not twitter_auth or not twitter_resource:
+            raise HTTPException(
+                status_code=500,
+                detail="Twitter plugins not available"
+            )
+        
+        # Get credentials and initialize client
+        credentials = twitter_auth.credentials_from_string(twitter_account.twitter_cookie)
+        client = await twitter_resource.initialize_client(credentials)
+        
         # Post tweet
-        client = TwitterClient.from_cookie_string(twitter_account.twitter_cookie)
-        tweet_id = await client.post_tweet(tweet_data.text)
+        tweet_id = await twitter_resource.post_tweet(client, tweet_data.text)
         
         # Log successful tweet
         await log_successful_tweet(db, token.user_id, tweet_data.text, tweet_id)
@@ -267,7 +301,7 @@ async def post_tweet(
         logger.error(f"Error posting tweet for user {token.user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def log_failed_tweet(db: Session, user_id: int, tweet_text: str, reason: str):
+async def log_failed_tweet(db: Session, user_id: str, tweet_text: str, reason: str):
     """Log a failed tweet attempt."""
     tweet_log = TweetLog(
         user_id=user_id,
@@ -279,7 +313,7 @@ async def log_failed_tweet(db: Session, user_id: int, tweet_text: str, reason: s
     db.commit()
     logger.warning(f"Tweet failed safety check for user {user_id}: {reason}")
 
-async def log_successful_tweet(db: Session, user_id: int, tweet_text: str, tweet_id: str):
+async def log_successful_tweet(db: Session, user_id: str, tweet_text: str, tweet_id: str):
     """Log a successful tweet."""
     tweet_log = TweetLog(
         user_id=user_id,
