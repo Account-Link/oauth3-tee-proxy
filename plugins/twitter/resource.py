@@ -35,15 +35,15 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import User, TwitterAccount, TweetLog
+from plugins.twitter.models import TwitterAccount, TweetLog
 from oauth2_routes import OAuth2Token, verify_token_and_scopes
 from safety import SafetyFilter, SafetyLevel
-from config import get_settings
+from plugins.twitter.config import get_twitter_settings
 from plugins import ResourcePlugin, RoutePlugin
 from twitter.account import Account
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
+settings = get_twitter_settings()
 
 # Pydantic models
 class TwitterCookieSubmit(BaseModel):
@@ -326,7 +326,11 @@ class TwitterResourcePlugin(ResourcePlugin, RoutePlugin):
                     raise HTTPException(status_code=404, detail="Twitter account not found")
                 
                 # Safety check
-                if settings.SAFETY_FILTER_ENABLED and not tweet_data.bypass_safety:
+                # Get the main settings for core functionality
+                from config import get_settings
+                core_settings = get_settings()
+                
+                if core_settings.SAFETY_FILTER_ENABLED and settings.SAFETY_FILTER_ENABLED and not tweet_data.bypass_safety:
                     safety_filter = SafetyFilter(level=SafetyLevel.MODERATE)
                     is_safe, reason = await safety_filter.check_tweet(tweet_data.text)
                     

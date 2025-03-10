@@ -10,6 +10,10 @@ from database import get_db
 from config import get_settings
 from plugin_manager import plugin_manager
 
+# Import plugin-specific settings to get allowed scopes
+from plugins.twitter.config import get_twitter_settings
+from plugins.telegram.config import get_telegram_settings
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,9 @@ def update_scopes_from_plugins():
     It retrieves the scopes from the plugin_manager and adds them to
     the global OAUTH2_SCOPES dictionary.
     
+    The function also validates that the plugin-defined scopes match
+    what's allowed in each plugin's configuration.
+    
     The function should be called during application startup, after
     plugin discovery but before the application starts handling requests.
     
@@ -38,8 +45,31 @@ def update_scopes_from_plugins():
         Logs information about the number of scopes registered.
     """
     global OAUTH2_SCOPES
+    
+    # Get scopes from all plugins through the plugin manager
     plugin_scopes = plugin_manager.get_all_plugin_scopes()
     OAUTH2_SCOPES.update(plugin_scopes)
+    
+    # Also validate plugin-specific scope settings
+    # This ensures that plugin configs ALLOWED_SCOPES setting matches what the plugin registers
+    twitter_settings = get_twitter_settings()
+    telegram_settings = get_telegram_settings()
+    
+    twitter_scopes = set(twitter_settings.ALLOWED_SCOPES.split())
+    telegram_scopes = set(telegram_settings.ALLOWED_SCOPES.split())
+    
+    registered_twitter_scopes = {s for s in OAUTH2_SCOPES if s.startswith("tweet.")}
+    registered_telegram_scopes = {s for s in OAUTH2_SCOPES if s.startswith("telegram.")}
+    
+    # Log warnings if there are mismatches
+    for scope in twitter_scopes:
+        if scope not in registered_twitter_scopes:
+            logger.warning(f"Twitter scope '{scope}' in settings but not registered by plugin")
+    
+    for scope in telegram_scopes:
+        if scope not in registered_telegram_scopes:
+            logger.warning(f"Telegram scope '{scope}' in settings but not registered by plugin")
+    
     logger.info(f"Updated OAuth2 scopes from plugins: {len(OAUTH2_SCOPES)} scopes registered")
 
 # Define the oauth2_scheme with empty scopes for now

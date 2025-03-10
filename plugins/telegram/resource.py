@@ -35,13 +35,13 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from database import get_db
-from models import User, TelegramAccount, TelegramChannel
+from plugins.telegram.models import TelegramAccount, TelegramChannel
 from plugins import ResourcePlugin, RoutePlugin
 from telethon import TelegramClient as TelethonClient
 from telethon.sessions import StringSession
-from config import get_settings
+from plugins.telegram.config import get_telegram_settings
 
-settings = get_settings()
+settings = get_telegram_settings()
 logger = logging.getLogger(__name__)
 
 # Pydantic models for API requests and responses
@@ -247,8 +247,8 @@ class TelegramResourcePlugin(ResourcePlugin, RoutePlugin):
         initializes the plugin with these credentials. These credentials are
         used for all Telegram API interactions.
         """
-        self.api_id = settings.TELEGRAM_API_ID
-        self.api_hash = settings.TELEGRAM_API_HASH
+        self.api_id = settings.API_ID
+        self.api_hash = settings.API_HASH
     
     async def initialize_client(self, credentials: Dict[str, Any]) -> TelegramClient:
         """

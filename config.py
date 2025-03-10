@@ -26,14 +26,13 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-here"  # Change this in production!
 
-    # Telegram Settings
-    TELEGRAM_API_ID: str
-    TELEGRAM_API_HASH: str
-    TELEGRAM_SESSION_PATH: str = "./telegram_sessions"
-
     # OAuth2 Settings
     OAUTH2_TOKEN_EXPIRE_HOURS: int = 24
-    OAUTH2_ALLOWED_SCOPES: str = "telegram.post_any tweet.post"
+    # Note: OAUTH2_ALLOWED_SCOPES is now derived from plugins
+    
+    # Plugin System Settings
+    PLUGINS_ENABLED: bool = True
+    PLUGINS_AUTO_DISCOVER: bool = True
 
     class Config:
         env_file = ".env"

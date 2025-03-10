@@ -21,15 +21,12 @@ from starlette.middleware.sessions import SessionMiddleware
 # Local imports
 from config import get_settings
 from database import get_db, engine, Base
-from models import (
-    User, 
-    WebAuthnCredential, 
-    TwitterAccount, 
-    UserSession, 
-    TelegramAccount, 
-    TelegramChannel
-)
+from models import User, WebAuthnCredential, OAuth2Token
 from oauth2_routes import router as oauth2_router
+
+# Import plugins when needed
+from plugins.twitter.models import TwitterAccount
+from plugins.telegram.models import TelegramAccount, TelegramChannel
 
 # Plugin system
 from plugin_manager import plugin_manager
@@ -123,19 +120,28 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         request.session.clear()
         return RedirectResponse(url="/login")
     
-    twitter_accounts = db.query(TwitterAccount).filter(
-        TwitterAccount.user_id == user_id
-    ).all()
+    # Get accounts from enabled plugins
+    # For now, we still query directly, but with a clearer separation that these are plugin-specific
+    twitter_accounts = []
+    telegram_accounts = []
     
-    telegram_accounts = db.query(TelegramAccount).filter(
-        TelegramAccount.user_id == user_id
-    ).all()
-    
-    # Get channels for each Telegram account
-    for account in telegram_accounts:
-        account.channels = db.query(TelegramChannel).filter(
-            TelegramChannel.telegram_account_id == account.id
+    # Check if Twitter plugin is available
+    if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
+        twitter_accounts = db.query(TwitterAccount).filter(
+            TwitterAccount.user_id == user_id
         ).all()
+    
+    # Check if Telegram plugin is available
+    if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
+        telegram_accounts = db.query(TelegramAccount).filter(
+            TelegramAccount.user_id == user_id
+        ).all()
+        
+        # Get channels for each Telegram account
+        for account in telegram_accounts:
+            account.channels = db.query(TelegramChannel).filter(
+                TelegramChannel.telegram_account_id == account.id
+            ).all()
     
     # Get active OAuth2 tokens
     oauth2_tokens = db.query(OAuth2Token).filter(
