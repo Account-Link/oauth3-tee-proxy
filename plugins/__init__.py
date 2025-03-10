@@ -265,6 +265,39 @@ class ResourcePlugin(PluginBase):
         """
         raise NotImplementedError("Subclasses must implement get_available_scopes")
 
+class RoutePlugin:
+    """
+    Mixin class for plugins that provide their own routes.
+    
+    Route plugins are responsible for:
+    - Creating and configuring FastAPI APIRouter objects
+    - Defining routes specific to their service
+    - Handling HTTP requests for their service-specific endpoints
+    - Implementing the necessary route handlers
+    
+    The routes provided by a plugin are mounted under the service name,
+    e.g., "/[service]/..." to create appropriate namespacing.
+    
+    Implementations should define service-specific routes and handlers,
+    following the pattern used in the application.
+    """
+    
+    def get_router(self):
+        """
+        Get the router for this plugin's routes.
+        
+        This method should return a FastAPI APIRouter object that defines
+        all the routes for this plugin. The router will be mounted under
+        the service name to create appropriate namespacing.
+        
+        Returns:
+            fastapi.APIRouter: The router with all plugin-specific routes
+            
+        Raises:
+            NotImplementedError: If the subclass doesn't implement this method
+        """
+        raise NotImplementedError("Subclasses must implement get_router")
+
 # Create directories if needed
 import os
 os.makedirs(os.path.dirname(__file__), exist_ok=True)

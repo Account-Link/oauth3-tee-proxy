@@ -28,11 +28,32 @@ Supported Scopes:
 import logging
 import traceback
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
-from plugins import ResourcePlugin
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, Form, Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models import User, TwitterAccount, TweetLog
+from oauth2_routes import OAuth2Token, verify_token_and_scopes
+from safety import SafetyFilter, SafetyLevel
+from config import get_settings
+from plugins import ResourcePlugin, RoutePlugin
 from twitter.account import Account
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
+
+# Pydantic models
+class TwitterCookieSubmit(BaseModel):
+    """Model for submitting Twitter cookie."""
+    twitter_cookie: str
+
+class TweetRequest(BaseModel):
+    """Model for tweet requests."""
+    text: str
+    bypass_safety: bool = False
 
 class TwitterClient:
     """
@@ -108,17 +129,20 @@ class TwitterClient:
             logger.error(f"Error posting tweet: {e}\nTraceback:\n{traceback.format_exc()}")
             raise
 
-class TwitterResourcePlugin(ResourcePlugin):
+class TwitterResourcePlugin(ResourcePlugin, RoutePlugin):
     """
     Plugin for Twitter resource operations.
     
-    This class implements the ResourcePlugin interface for Twitter operations,
+    This class implements the ResourcePlugin and RoutePlugin interfaces for Twitter operations,
     providing methods for initializing Twitter clients, validating clients,
     and performing operations like posting tweets.
     
     The plugin defines the available scopes for Twitter operations and provides
     methods for working with these scopes. It serves as a bridge between the
     OAuth3 TEE Proxy and the Twitter API.
+    
+    It also provides routes for Twitter-specific operations that are mounted
+    under the "/twitter" prefix in the main application.
     
     Class Attributes:
         service_name (str): The unique identifier for this plugin ("twitter")
@@ -204,3 +228,150 @@ class TwitterResourcePlugin(ResourcePlugin):
             Exception: If the tweet cannot be posted
         """
         return await client.post_tweet(text)
+    
+    def get_router(self) -> APIRouter:
+        """
+        Get the router for Twitter-specific routes.
+        
+        Implements the RoutePlugin interface to provide Twitter-specific routes.
+        The routes handle Twitter cookie submission, posting tweets, and other
+        Twitter-specific operations.
+        
+        Returns:
+            APIRouter: FastAPI router with Twitter-specific routes
+        """
+        router = APIRouter(tags=["twitter"])
+        
+        @router.post("/cookie")
+        async def submit_cookie(
+            response: Response,
+            db: Session = Depends(get_db),
+            twitter_cookie: str = Form(...),
+            request: Request = None
+        ):
+            """
+            Submit and validate a Twitter cookie.
+            Links the Twitter account to the authenticated user.
+            """
+            if not request.session.get("user_id"):
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Authentication required. Please log in first."
+                )
+            
+            try:
+                # Get the Twitter auth plugin from our plugin manager
+                from plugin_manager import plugin_manager
+                twitter_auth = plugin_manager.create_authorization_plugin("twitter")
+                if not twitter_auth:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Twitter plugin not available"
+                    )
+                
+                # Parse and validate the cookie
+                credentials = twitter_auth.credentials_from_string(twitter_cookie)
+                if not await twitter_auth.validate_credentials(credentials):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Invalid Twitter cookie. Please provide a valid cookie."
+                    )
+                
+                # Get Twitter ID from the cookie
+                twitter_id = await twitter_auth.get_user_identifier(credentials)
+                
+                # Check if account already exists
+                existing_account = db.query(TwitterAccount).filter(
+                    TwitterAccount.twitter_id == twitter_id
+                ).first()
+                
+                if existing_account:
+                    if existing_account.user_id and existing_account.user_id != request.session.get("user_id"):
+                        raise HTTPException(status_code=400, detail="Twitter account already linked to another user")
+                    existing_account.twitter_cookie = twitter_cookie
+                    existing_account.updated_at = datetime.utcnow()
+                    existing_account.user_id = request.session.get("user_id")
+                else:
+                    account = TwitterAccount(
+                        twitter_id=twitter_id,
+                        twitter_cookie=twitter_cookie,
+                        user_id=request.session.get("user_id")
+                    )
+                    db.add(account)
+                
+                db.commit()
+                logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
+                return {"status": "success", "message": "Twitter account linked successfully"}
+            except Exception as e:
+                logger.error(f"Error processing cookie submission: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=500, 
+                    detail="An unexpected error occurred while processing your request."
+                )
+        
+        @router.post("/tweet")
+        async def post_tweet(
+            tweet_data: TweetRequest,
+            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["tweet.post"]),
+            db: Session = Depends(get_db)
+        ):
+            """Post a tweet using the authenticated user's Twitter account"""
+            try:
+                twitter_account = db.query(TwitterAccount).filter(
+                    TwitterAccount.user_id == token.user_id
+                ).first()
+                
+                if not twitter_account:
+                    logger.error(f"No Twitter account found for user {token.user_id}")
+                    raise HTTPException(status_code=404, detail="Twitter account not found")
+                
+                # Safety check
+                if settings.SAFETY_FILTER_ENABLED and not tweet_data.bypass_safety:
+                    safety_filter = SafetyFilter(level=SafetyLevel.MODERATE)
+                    is_safe, reason = await safety_filter.check_tweet(tweet_data.text)
+                    
+                    if not is_safe:
+                        # Log failed tweet
+                        tweet_log = TweetLog(
+                            user_id=token.user_id,
+                            tweet_text=tweet_data.text,
+                            safety_check_result=False,
+                            safety_check_message=reason
+                        )
+                        db.add(tweet_log)
+                        db.commit()
+                        logger.warning(f"Tweet failed safety check for user {token.user_id}: {reason}")
+                        
+                        raise HTTPException(status_code=400, detail=f"Tweet failed safety check: {reason}")
+                
+                # Get the authorization plugin to parse credentials
+                from plugin_manager import plugin_manager
+                twitter_auth = plugin_manager.create_authorization_plugin("twitter")
+                
+                # Get credentials and initialize client
+                credentials = twitter_auth.credentials_from_string(twitter_account.twitter_cookie)
+                client = await self.initialize_client(credentials)
+                
+                # Post tweet
+                tweet_id = await self.post_tweet(client, tweet_data.text)
+                
+                # Log successful tweet
+                tweet_log = TweetLog(
+                    user_id=token.user_id,
+                    tweet_text=tweet_data.text,
+                    safety_check_result=True,
+                    tweet_id=tweet_id
+                )
+                db.add(tweet_log)
+                db.commit()
+                logger.info(f"Successfully posted tweet {tweet_id} for user {token.user_id}")
+                
+                return {"status": "success", "tweet_id": tweet_id}
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error posting tweet for user {token.user_id}: {str(e)}", exc_info=True)
+                raise HTTPException(status_code=500, detail="Internal server error")
+                
+        return router

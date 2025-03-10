@@ -207,7 +207,7 @@
 
             async function refreshChannels(accountId) {
                 try {
-                    const response = await fetch('/api/telegram/channels');
+                    const response = await fetch('/telegram/channels');
                     if (response.ok) {
                         window.location.reload();
                     } else {

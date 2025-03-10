@@ -41,9 +41,12 @@ import logging
 import os
 from typing import Dict, List, Type, Optional, Any
 
+from fastapi import APIRouter
+
 from plugins import (
     AuthorizationPlugin,
     ResourcePlugin,
+    RoutePlugin,
     get_authorization_plugin,
     get_resource_plugin,
     get_all_authorization_plugin_classes,
@@ -243,6 +246,41 @@ class PluginManager:
                 else:
                     scopes[scope] = f"Permission for {scope}"
         return scopes
+        
+    def get_service_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers from plugins that implement the RoutePlugin interface.
+        
+        This method identifies plugins that implement the RoutePlugin interface,
+        instantiates them, and calls their get_router() method to retrieve the
+        service-specific routers. The routers are keyed by service name for
+        mounting in the main application.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to their routers
+            
+        Example:
+            >>> routers = plugin_manager.get_service_routers()
+            >>> for service_name, router in routers.items():
+            ...     app.include_router(router, prefix=f"/{service_name}")
+        """
+        routers = {}
+        
+        # Check all authorization plugins
+        for service_name, plugin_class in self.get_all_authorization_plugins().items():
+            if issubclass(plugin_class, RoutePlugin):
+                plugin = plugin_class()
+                routers[service_name] = plugin.get_router()
+                logger.info(f"Found route plugin in authorization plugin: {service_name}")
+        
+        # Check all resource plugins
+        for service_name, plugin_class in self.get_all_resource_plugins().items():
+            if issubclass(plugin_class, RoutePlugin) and service_name not in routers:
+                plugin = plugin_class()
+                routers[service_name] = plugin.get_router()
+                logger.info(f"Found route plugin in resource plugin: {service_name}")
+        
+        return routers
 
 # Create a singleton instance of the plugin manager
 plugin_manager = PluginManager()

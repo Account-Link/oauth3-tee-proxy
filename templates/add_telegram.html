@@ -117,7 +117,7 @@
                 const phoneError = document.getElementById('phoneError');
                 
                 try {
-                    const response = await fetch('/api/telegram/request-code', {
+                    const response = await fetch('/telegram/request-code', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -148,7 +148,7 @@
                 const codeError = document.getElementById('codeError');
                 
                 try {
-                    const response = await fetch('/api/telegram/verify-code', {
+                    const response = await fetch('/telegram/verify-code', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
