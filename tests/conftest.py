@@ -74,15 +74,38 @@ def app(test_db) -> FastAPI:
 
 
 @pytest.fixture(scope="function")
-def client(app) -> TestClient:
+def client(app):
     """
     Create a test client for the FastAPI app.
     
-    Use a direct import from fastapi.testclient which should be more compatible
-    with our specific FastAPI version.
+    This creates a custom client that doesn't rely on the specific TestClient versions,
+    since there appears to be a compatibility issue with the current libraries.
+    
+    For now, our test suite only needs basic functionality without complex features.
     """
-    from fastapi.testclient import TestClient as FastAPITestClient
-    return FastAPITestClient(app)
+    import httpx
+    
+    class SimpleTestClient:
+        def __init__(self, app):
+            self.app = app
+            self.cookies = {}
+        
+        def post(self, url, data=None, json=None, params=None, headers=None, cookies=None):
+            from fastapi.testclient import TestClient
+            
+            # Use our fixtures for a fresh instance each time that doesn't rely on init params
+            client = TestClient.__new__(TestClient)
+            client.cookies = self.cookies.copy()
+            
+            # Use the internal method directly
+            if data is not None:
+                return client.request("POST", url, data=data, params=params, headers=headers, cookies=cookies)
+            elif json is not None:
+                return client.request("POST", url, json=json, params=params, headers=headers, cookies=cookies)
+            else:
+                return client.request("POST", url, params=params, headers=headers, cookies=cookies)
+    
+    return SimpleTestClient(app)
 
 
 @pytest.fixture(scope="function")
