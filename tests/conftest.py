@@ -78,21 +78,11 @@ def client(app) -> TestClient:
     """
     Create a test client for the FastAPI app.
     
-    Handle compatibility issues between different versions of TestClient.
+    Use a direct import from fastapi.testclient which should be more compatible
+    with our specific FastAPI version.
     """
-    try:
-        # Try the new way first
-        return TestClient(app)
-    except TypeError:
-        # Fall back to the old way for compatibility
-        import inspect
-        params = inspect.signature(TestClient.__init__).parameters
-        if 'app' in params:
-            return TestClient(app=app)
-        else:
-            # Last resort, create a different kind of client
-            from fastapi.testclient import TestClient as FastAPITestClient
-            return FastAPITestClient(app)
+    from fastapi.testclient import TestClient as FastAPITestClient
+    return FastAPITestClient(app)
 
 
 @pytest.fixture(scope="function")
