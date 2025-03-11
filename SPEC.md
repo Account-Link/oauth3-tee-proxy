@@ -2,7 +2,7 @@
 
 ## **Abstract**
 
-The OAuth 3.0 authorization framework enables third-party applications to obtain limited access to services, either on behalf of a resource owner by orchestrating an approval interaction between the resource owner and the service, or by allowing the third-party application to obtain access on its own behalf. This specification expands upon and enhances the OAuth 2.0 protocol described in RFC 6749, introducing more robust security mechanisms, enhanced permissioning models, and a proxy-based architecture that provides enhanced control over access to protected resources.
+The OAuth 3.0 authorization framework enables third-party applications to obtain limited access to services, either on behalf of a resource owner by orchestrating an approval interaction between the resource owner and the service, or by allowing the third-party application to obtain access on its own behalf. This specification expands upon and enhances the OAuth protocols described in previous versions, introducing more robust security mechanisms, enhanced permissioning models, and a proxy-based architecture that provides enhanced control over access to protected resources.
 
 ## **1\. Introduction**
 
@@ -22,7 +22,7 @@ OAuth 3.0 defines five roles:
 
 ***Client \-*** An application making protected resource requests on behalf of the resource owner and with its authorization. The term "client" does not imply any particular implementation characteristics.
 
-***TEE proxy \-*** A new entity in the OAuth flow that sits between the client and the resource servers, providing enhanced security, scope restrictions, and access management. The TEE proxy can manage multiple accounts and authorization contexts simultaneously.
+***Confidential Compute Proxy \-*** A new entity in the OAuth flow that sits between the client and the resource servers, providing enhanced security, policy enforcement, and access management. The proxy can manage multiple accounts and authorization contexts simultaneously. This proxy is typically implemented in a Trusted Execution Environment (TEE) or other confidential computing technology that can make credible commitments about the behavior of the proxy.
 
 ### 1.2. Protocol Flow
 
@@ -34,57 +34,57 @@ Figure 1: OAuth 3.0 Protocol Flow
 
 The OAuth 3.0 flow illustrated in Figure 1 includes the following steps:
 
-(A) The user authenticates to the TEE Proxy using a passkey. This grants the user full scope access to the TEE Proxy functionalities.
+(A) The user authenticates to the proxy using a passkey. This grants the user full scope access to the proxy functionalities.
 
-(B) After authentication, the user can connect various accounts to the TEE Proxy through multiple methods:
+(B) After authentication, the user can connect various accounts to the proxy through multiple methods:
 
-* Username and password authentication, resulting in session cookies or JWTs stored in the TEE's KMS  
+* Username and password authentication, resulting in session cookies or JWTs stored in the proxy's KMS  
 * Traditional OAuth 2.0 flow if provided by the service  
 * Other authentication methods supported by the resource servers
 
 (C) The TEE Proxy securely stores these credentials (access tokens, session cookies, or JWTs) in its Key Management System (KMS).
 
-(D) When the user or a client application wants to access protected resources, the request goes through the TEE Proxy (see 1.2.1).
+(D) When the user or a client application wants to access protected resources, the request goes through the proxy (see 1.2.1).
 
 (E) The TEE Proxy retrieves the appropriate credentials from the KMS and makes authenticated requests to the resource servers.
 
-(F) The resource servers respond with the requested resources, which the TEE Proxy can then provide to the user or client.
+(F) The resource servers respond with the requested resources, which the proxy can then provide to the user or client.
 
-(G) For OAuth 2.0-compatible services, the TEE Proxy can handle refresh token flows automatically to maintain access.
+(G) For OAuth 2.0-compatible services, the proxy can handle refresh token flows automatically to maintain access.
 
-This architecture allows the TEE Proxy to act on behalf of the user going forward, with appropriate scope restrictions and security controls. The user only needs to authenticate once to the TEE Proxy, which then manages all subsequent authentication with resource servers.
+This architecture allows the proxy to act on behalf of the user going forward, with appropriate scope restrictions and security controls. The user only needs to authenticate once to the proxy, which then manages all subsequent authentication with resource servers.
 
 #### 1.2.1. Client-to-TEE Proxy Authorization
 
-The TEE Proxy implements OAuth 2.0 to authorize clients, enabling a second layer of authorization control beyond the resource server's native authorization mechanisms. This creates a cascading permission model that enhances security and control.
+The Confidential Compute Proxy implements OAuth to authorize clients, enabling a second layer of authorization control beyond the resource server's native authorization mechanisms. This creates a cascading permission model that enhances security and control.
 
 ![][image2]
 
-Figure 2: Client-to-TEE Proxy Authorization Flow
+Figure 2: Client-to-Proxy Authorization Flow
 
-When a client interacts with the TEE Proxy, the following flow occurs:
+When a client interacts with the proxy, the following flow occurs:
 
-(A) A client application requests authorization from the TEE Proxy using OAuth 2.0.
+(A) A client application requests authorization from the proxy using OAuth.
 
-(B) The TEE Proxy processes the authorization request against the access rights of the authenticated user.
+(B) The proxy processes the authorization request against the access rights of the authenticated user.
 
-(C) If approved, the TEE Proxy issues an access token to the client with specified scopes.
+(C) If approved, the proxy issues an access token to the client with specified scopes.
 
-(D) The client can then use this access token to request protected resources from the TEE Proxy, which retrieves them from the appropriate resource servers.
+(D) The client can then use this access token to request protected resources from the proxy, which retrieves them from the appropriate resource servers.
 
-(E) The client may request the TEE Proxy to issue a new access token with more restrictive scopes than its original token.
+(E) The client may request the proxy to issue a new access token with more restrictive scopes than its original token.
 
 (F) This more restricted token can be provided to third-party clients, allowing them limited access to protected resources.
 
 (G) Third-party clients can only access resources within the scope constraints of their issued token.
 
-The TEE Proxy enforces an important security constraint: clients can only create access tokens with scopes that are equal to or more restrictive than their own access token. This scope delegation model creates a permission hierarchy that prevents privilege escalation.
+The proxy enforces an important security constraint: clients can only create access tokens with scopes that are equal to or more restrictive than their own access token. This scope delegation model creates a permission hierarchy that prevents privilege escalation.
 
 For example, if a client has access to read and write to a user's Twitter account, it can create a token for a third party that only allows reading tweets, but not one that would allow full account access or other expanded privileges.
 
-This hierarchical delegation model enables secure credential sharing with third parties while maintaining tight control over resource access. When the third party uses the restricted token, all requests are still processed through the TEE Proxy, which enforces the scope limitations and maintains a comprehensive audit trail.
+This hierarchical delegation model enables secure credential sharing with third parties while maintaining tight control over resource access. When the third party uses the restricted token, all requests are still processed through the proxy, which enforces the scope limitations and maintains a comprehensive audit trail.
 
-The TEE Proxy maintains all scope restrictions in its authorization server, ensuring that all resource access adheres to the permissions granted by the resource owner, regardless of how many delegation steps have occurred.
+The proxy maintains all scope restrictions in its authorization server, ensuring that all resource access adheres to the permissions granted by the resource owner, regardless of how many delegation steps have occurred.
 
 ### **1.3. Authorization Grant**
 
@@ -96,28 +96,81 @@ Additionally, OAuth 3.0 provides enhanced authorization mechanisms, including:
 * Session token authorization  
 * Web session JWT authorization
 
-### **1.4. Account Encumbrance**
+### **1.4. Delegation, Account Encumbrance, and Credible Commitments**
 
-OAuth 3.0 introduces the concept of account encumbrance, where resource owners can delegate varying levels of control over their accounts to the TEE proxy. Encumbrance levels may include:
+OAuth 3.0 introduces several important concepts related to user control over accounts:
 
-* Read-only access  
-* Limited write access  
-* Full account control
+#### **1.4.1. Delegation**
 
-Account encumbrance enables secure delegation of account access with strict permissioning, allowing clients to access and utilize resource owner accounts under controlled conditions.
+Delegation is the core capability that allows a resource owner to grant access to their accounts to third parties. Unlike traditional OAuth, which typically involves a single authorization decision per app, OAuth 3.0's proxy architecture allows for more sophisticated delegation patterns, including:
 
-### **1.5. Access Token and Scope**
+* Time-bound delegation  
+* Counter-bound delegation  
+* Conditional delegation  
+* Revocable delegation  
+* Hierarchical delegation (delegation of already-delegated access)
 
-OAuth 3.0 significantly expands the concept of access token scopes beyond OAuth 2.0. Access tokens in OAuth 3.0 can include:
+#### **1.4.2. Account Encumbrance**
 
-* Service-specific scopes (e.g., Twitter-specific, Telegram-specific)  
-* Time-based constraints (expiration, usage windows)  
-* Usage limits (e.g., maximum number of requests)  
-* Operation-specific permissions  
-* Conditional permissions requiring additional verification  
-* Third-party validation requirements
+Account encumbrance is an optional but powerful capability fundamentally different from delegation. While delegation grants authority to the proxy, encumbrance attenuates the authority of the original resource owner. Encumbrance creates credible commitments that cannot be unilaterally broken by the resource owner.
 
-This enhanced scoping language enables much finer-grained control over protected resources.
+In an encumbered relationship:
+
+* The resource owner voluntarily constrains their own future actions through the proxy  
+* The proxy gains exclusive control over certain operations  
+* The resource owner can no longer perform those operations without the proxy's involvement
+
+Encumbrance mechanisms may include:
+
+* Veto power: The proxy must approve certain operations before they can proceed  
+* Exclusive controls: Only the proxy can perform certain sensitive operations  
+* Password/credentials escrow: The proxy becomes the exclusive holder of authentication credentials
+
+For example, with an encumbered NPM publishing account:
+
+* The developer can no longer publish packages directly  
+* The proxy enforces requirements like 2FA, code reviews, or signing before publishing  
+* The developer cannot bypass these constraints without regaining full control (which might require recovery procedures)
+
+Similarly, with an encumbered DocuSign account:
+
+* The legal entity cannot sign documents except through the proxy's mechanisms  
+* The proxy can enforce rules based on smart contract conditions  
+* The entity cannot override these conditions without formal recovery procedures
+
+Account encumbrance is particularly valuable for applications requiring strong, verifiable guarantees, such as:
+
+* Automated signing services for software packages where bypassing verification would defeat security  
+* Digital legal document signing with enforceable guarantees tied to external conditions  
+* Credit scoring or verification services requiring provable, tamper-proof account history  
+* Smart contract integration with traditional web services requiring non-circumventable controls  
+* 
+
+#### **1.4.3. Credible Commitments**
+
+Credible commitments are promises that cannot be broken unilaterally. The Confidential Compute Proxy, running in a TEE or similar trusted environment, can make credible commitments about how it will handle user credentials and account access.
+
+This enables use cases that require stronger guarantees than traditional OAuth, such as:
+
+* Verifiable rate-limiting of API access  
+* Guaranteed escrow services  
+* Provable account history for verification purposes  
+* Enforceable usage policies across multiple services
+
+### **1.5. Policies and Access Control**
+
+OAuth 3.0 expands on the concept of access token scopes from OAuth 2.0, replacing them with a more powerful policy language. Policies allow for more expressive access control definitions that can:
+
+* Specify service-specific permissions (e.g., Twitter-specific, Telegram-specific)  
+* Enforce time-based constraints (expiration, usage windows)  
+* Implement usage limits (e.g., maximum number of requests)  
+* Define operation-specific permissions  
+* Require conditional permissions with additional verification  
+* Introduce third-party validation requirements
+
+This enhanced policy language enables much finer-grained control over protected resources. Unlike traditional OAuth scopes, which are typically defined per-API, OAuth 3.0 policies can be defined by users and enforced consistently across multiple services.
+
+Policies can be defined as templates that users can authorize for multiple applications, streamlining the authorization experience while maintaining strong security guarantees.
 
 ### **1.6. Enhanced Security Model**
 
@@ -127,17 +180,18 @@ OAuth 3.0 incorporates enhanced security mechanisms:
 * Optional two-factor authentication requirements for sensitive operations  
 * Mandatory security filters for potentially risky operations  
 * Access logging with configurable retention policies  
-* Third-party verification of potentially risky requests
+* Third-party verification of potentially risky requests  
+* Credential portability between proxies while maintaining security guarantees
 
 ## **2\. Client Registration**
 
 \[Same as OAuth 2.0 with the following additions\]
 
-### **2.1. TEE Proxy Registration**
+### **2.1. Confidential Compute Proxy Registration**
 
-In addition to client registration, OAuth 3.0 introduces TEE proxy registration. The TEE proxy requires registration with both authorization servers and resource servers. The registration process establishes the TEE proxy's identity and access permissions.
+In addition to client registration, OAuth 3.0 introduces proxy registration. The proxy requires registration with both authorization servers and resource servers. The registration process establishes the proxy's identity and access permissions.
 
-Resource owners must authorize the TEE proxy to act on their behalf, which typically involves an interaction with an HTML user interface rendered in the resource owner's user-agent.
+Resource owners must authorize the proxy to act on their behalf, which typically involves an interaction with an HTML user interface rendered in the resource owner's user-agent.
 
 ## **3\. Protocol Endpoints**
 
@@ -151,13 +205,13 @@ The authorization endpoint is used by the client to obtain authorization from th
 
 The token endpoint is used by the client to exchange an authorization grant for an access token, typically with client authentication.
 
-### **3.3. TEE Proxy Endpoint**
+### **3.3. Confidential Compute Proxy Endpoint**
 
-The TEE proxy endpoint is a new addition in OAuth 3.0, providing an interface for clients to access protected resources through the TEE proxy. The TEE proxy endpoint receives requests containing access tokens and applies appropriate scope restrictions before retrieving and returning protected resources.
+The proxy endpoint is a new addition in OAuth 3.0, providing an interface for clients to access protected resources through the proxy. The proxy endpoint receives requests containing access tokens and applies appropriate policy restrictions before retrieving and returning protected resources.
 
 ### **3.4. Resource Owner Authentication Endpoint**
 
-This endpoint is used by the resource owner to authenticate with the TEE proxy using passkeys or other authentication mechanisms. This allows the resource owner to manage their accounts and access permissions.
+This endpoint is used by the resource owner to authenticate with the proxy using passkeys or other authentication mechanisms. This allows the resource owner to manage their accounts and access permissions.
 
 ## **4\. Obtaining Authorization**
 
@@ -167,143 +221,125 @@ OAuth 3.0 supports all the authorization flows from OAuth 2.0, including authori
 
 Additionally, OAuth 3.0 introduces a new flow for TEE proxy authorization:
 
-#### **4.1.1. TEE Proxy Authorization Flow**
+#### **4.1.1. Proxy Authorization Flow**
 
 ```
- +--------+                               +---------------+
- |        |--(A)--- Passkey Auth -------->|   TEE Proxy   |
- |        |                               |               |
- |        |<-(B)--- Auth Success ---------|               |
- | User/  |                               +---------------+
- | Client |                                      |
- |        |                                      v
- |        |                               +---------------+
- |        |<-(C)-- Manage Accounts ------>|   TEE Proxy   |
- |        |                               |   Interface   |
- +--------+                               +---------------+
-                                                  |
-                                                  v
-                                          +---------------+
-                                          | Authorization |
-                                          |   Servers     |
-                                          +---------------+
+ Flow Diagram Needed
 ```
 
-Figure 2: TEE Proxy Authorization Flow
+Figure 2: Proxy Authorization Flow
 
-(A) The user/client authenticates to the TEE proxy using a passkey or other strong authentication mechanism.
+(A) The user/client authenticates to the proxy using a passkey or other strong authentication mechanism.
 
-(B) Upon successful authentication, the TEE proxy establishes a session with the user/client.
+(B) Upon successful authentication, the proxy establishes a session with the user/client.
 
-(C) The user/client can then manage their accounts, connect new resource servers, and configure access permissions through the TEE proxy interface.
+(C) The user/client can then manage their accounts, connect new resource servers, and configure access permissions through the proxy interface.
 
-## **5\. TEE Proxy Architecture**
+## **5\. Confidential Compute Proxy Architecture**
 
-### **5.1. TEE Proxy Components**
+### **5.1. Proxy Components**
 
-The TEE proxy consists of the following key components:
+The Confidential Compute Proxy consists of the following key components:
 
-1. Authentication Module: Handles user authentication via passkeys or other methods.
-
-2. Account Management: Manages connected accounts and their credentials.
-
-3. Access Control: Enforces scope restrictions and access policies.
-
-4. Key Management Service (KMS): Securely stores tokens, credentials, and session information.
-
+1. Authentication Module: Handles user authentication via passkeys or other methods.  
+2. Account Management: Manages connected accounts and their credentials.  
+3. Policy Enforcement: Enforces policy restrictions and access controls.  
+4. Key Management Service (KMS): Securely stores tokens, credentials, and session information.  
 5. Plugin Architecture: Supports extensions for different resource servers and authentication methods.
 
 ### **5.2. Account Connections**
 
 The TEE proxy can connect to resource servers through various methods:
 
-1. OAuth 2.0 Authentication: Using standard OAuth 2.0 flows.
-
-2. Session Cookie Authentication: Using cookies obtained through user login.
-
+1. OAuth 2.0 Authentication: Using standard OAuth 2.0 flows.  
+2. Session Cookie Authentication: Using cookies obtained through user login.  
 3. API Key Authentication: Using API keys for services that support them.
 
-Connected accounts are stored securely in the TEE proxy's KMS and can be accessed according to the permissions granted by the resource owner.
+Connected accounts are stored securely in the proxy's KMS and can be accessed according to the permissions granted by the resource owner.
 
-## **6\. Enhanced Scoping Language**
+### **5.3. Migration and Portability**
 
-OAuth 3.0 introduces a significantly enhanced scoping language to provide finer-grained control over resource access.
+One of the key features of OAuth 3.0 is the ability to migrate authorized accounts and policies between different proxy instances, enabling:
 
-### **6.1. Scope Syntax**
+* Migration from a hosted proxy service to a self-hosted proxy  
+* Migration between different proxy providers  
+* Recovery in case of proxy unavailability or failure
 
-The scope syntax in OAuth 3.0 follows this general format:
+This migration capability ensures that users are not locked into a particular proxy provider, while still maintaining the security guarantees and policies associated with their accounts.
+
+## **6\. Policy Language**
+
+OAuth 3.0 introduces a policy language to provide finer-grained control over resource access.
+
+### **6.1. Policy Structure**
+
+Policies in OAuth 3.0 are expressed using a Domain-Specific Language (DSL) that allows resource owners to define precisely what access is permitted. Policies can include:
+
+* Service-specific permissions  
+* Resource-level access control  
+* Operation restrictions  
+* Time and usage limits  
+* Conditional requirements
+
+  ### **6.2. Policy Example**
 
 ```
-service.resource:action:condition(parameters)
+policy MyTwitterReadOnly {
+  services: ["twitter.com"]
+  allowed_apps: ["tweetdeck.com", "hootsuite.com"]
+  operations: {
+    "read": true,
+    "post": false,
+    "delete": false,
+    "dm": false
+  }
+  rate_limits: {
+    "read": 100 per hour
+  }
+  expiration: 30 days
+}
 ```
 
-Where:
+  ### **6.3. Policy Negotiation**
 
-* `service` identifies the service provider (e.g., "twitter", "telegram")  
-* `resource` identifies the resource type (e.g., "tweet", "message")  
-* `action` identifies the allowed operation (e.g., "read", "write", "delete")  
-* `conditions` provide additional constraints or conditions (optional)
+OAuth 3.0 allows for policy negotiation between users and applications:
 
-### **6.2. Scope Modifiers**
+1. Applications can propose policies they require to function  
+2. Users can create custom policies or use templates  
+3. Policies can be modified and saved for reuse  
+4. Multiple applications can be authorized under the same policy
 
-NOTE: This section needs updating to match [Account.Link Scoping DSL](https://docs.google.com/document/d/1aCtLNGJVKp5GrtPH3Sqrqib8UfOUZ90oyzrF9yZfrfg/edit?tab=t.0)
+This provides a more user-centric approach to authorization, compared to the application-centric model of traditional OAuth.
 
-OAuth 3.0 supports various scope modifiers to enhance access control:
-
-#### **6.2.1. Time-Based Modifiers**
-
-Time-based modifiers limit access based on time constraints:
-
-* `exp=timestamp`: Expiration time for the access  
-* `limit_count=n`: Limits the number of times the access can be used  
-* `window=start-end`: Limits access to a specific time window
-
-#### **6.2.2. Conditional Modifiers**
-
-Conditional modifiers apply additional conditions to access:
-
-* `require_2fa`: Requires two-factor authentication for access  
-* `filter=filter_name`: Applies a content filter (e.g., safety filter)  
-* `external_validation=validator_url`: Requires validation from an external service
-
-#### **6.2.3. Privacy and Logging Modifiers**
-
-Privacy and logging modifiers control how access is logged and data is handled:
-
-* `log=true|false`: Controls whether access is logged  
-* `log_retention=duration`: Specifies how long logs are retained  
-* `private=true|false`: Controls whether data is accessible to TEE proxy operators
-
-### **6.3. External Validation**
-
-NOTE: This section needs updating to match [Account.Link Scoping DSL](https://docs.google.com/document/d/1aCtLNGJVKp5GrtPH3Sqrqib8UfOUZ90oyzrF9yZfrfg/edit?tab=t.0)
+### **6.4. External Validation**
 
 OAuth 3.0 supports the concept of external validation for access requests. This allows third-party services to validate or authorize sensitive operations before they are permitted.
 
 External validation follows this process:
 
-1. The client makes a request to the TEE proxy.  
-2. The TEE proxy determines that external validation is required based on the scope.  
-3. The TEE proxy sends relevant (non-sensitive) details to the external validator.  
+1. The client makes a request to the proxy.  
+2. The proxy determines that external validation is required based on the policy.  
+3. The proxy sends relevant (non-sensitive) details to the external validator.  
 4. The external validator returns a boolean response (approve/deny).  
-5. The TEE proxy enforces the validator's decision.
+5. The proxy enforces the validator's decision.
 
 External validators may be:
 
-* Trusted validators recognized by the TEE proxy  
-* Third-party validators registered with the TEE proxy  
-* Custom validators specified by the resource owner
+* Trusted validators recognized by the proxy  
+* Third-party validators registered with the proxy  
+* Custom validators specified by the resource owner  
+* 
 
 ## **7\. Security Considerations**
 
-### **7.1. TEE Proxy Security**
+### **7.1. Confidential Compute Proxy Security**
 
-The TEE proxy introduces both security benefits and challenges:
+The Confidential Compute proxy introduces both security benefits and challenges:
 
 Benefits:
 
 * Centralized control over multiple account accesses  
-* Enhanced scope restrictions and monitoring  
+* Enhanced policy restrictions and monitoring  
 * Ability to enforce additional security measures
 
 Challenges:
@@ -318,37 +354,33 @@ Account encumbrance introduces the following security considerations:
 
 * Resource owners must understand the level of control they are delegating  
 * Encumbered accounts should have clear revocation mechanisms  
-* The TEE proxy must implement strong access controls to prevent unauthorized access to encumbered accounts
+* The proxy must implement strong access controls to prevent unauthorized access to encumbered accounts
 
-### **7.3. Scope and Permission Management**
+### **7.3. Policy and Permission Management**
 
-The enhanced scoping language requires careful consideration:
+The policy language requires careful consideration:
 
-* Scope definitions must be clearly communicated to resource owners  
+* Policy definitions must be clearly communicated to resource owners  
 * UIs must effectively represent complex permissions in an understandable way  
 * Validation mechanisms must be reliable and secure
 
-## **8\. Extension Points**
+## **8\. Account Encumbrance Use Cases**
 
-OAuth 3.0 provides several extension points:
+OAuth 3.0 enables several advanced use cases through its delegation and account encumbrance capabilities:
 
-### **8.1. Plugin Architecture**
+### **8.1. NPM Package Publishing**
 
-The TEE proxy supports a plugin architecture for extending functionality:
+Developers can securely delegate NPM package publishing rights to a Confidential Compute Proxy, which can enforce security policies like requiring two-factor authentication for sensitive operations.
 
-* Integration Plugins: Add support for additional resource servers  
-* Authentication Plugins: Add support for additional authentication methods  
-* Validation Plugins: Add support for custom validation logic
+### **8.2. DocuSign Integration with Smart Contracts**
 
-### **8.2. Scope Extensions**
+Legal entities can create enforceable links between blockchain smart contracts and traditional legal agreements by encumbering their DocuSign account to a proxy that automatically signs documents when corresponding on-chain conditions are met.
 
-The scope language can be extended with additional modifiers and conditions.
+### **8.3. Credit Score Verification**
 
-### **8.3. External Validators**
+Users can grant temporary access to their financial accounts to a proxy that generates verifiable credit scores or financial history reports without revealing raw account data, providing proof of financial status without compromising privacy.
 
-The external validation mechanism can be extended with additional validators.
-
-## **Appendix A: Scope Examples**
+## **Appendix A: Policy Examples**
 
 \[MORE INFORMATION NEEDED\]
 
@@ -358,7 +390,7 @@ The external validation mechanism can be extended with additional validators.
 
 ## **Appendix C: Acknowledgements**
 
-The OAuth 3.0 specification builds upon the work of the OAuth community and extends the OAuth 2.0 specification (RFC 6749). Contributors to this specification include researchers and developers from flashbots, the teleport project, and the Account.link implementation team.
+The OAuth 3.0 specification builds upon the work of the OAuth community and extends the OAuth 2.0 specification (RFC 6749\) as well as drawing inspiration from OAuth 1.0. Contributors to this specification include researchers and developers from flashbots, the teleport project, and the Account.link implementation team.
 
 [image1]: <data:image/png;base64,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>
 
