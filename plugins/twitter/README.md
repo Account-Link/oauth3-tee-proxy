@@ -30,6 +30,7 @@ Resource servers handle interaction with Twitter APIs and resources. They are re
 Current implementations:
 - **TwitterApiResourcePlugin**: Handles Twitter API operations (tweets, etc.)
 - **TwitterGraphQLResourcePlugin**: Provides passthrough access to Twitter's private GraphQL API
+- **TwitterV1ResourcePlugin**: Provides passthrough access to Twitter's v1.1 REST API
 
 Future possibilities:
 - Twitter Media Resource
@@ -45,6 +46,7 @@ Routes handle HTTP endpoints and user interactions. They are responsible for:
 Current implementations:
 - **TwitterRoutes**: Provides endpoints for account linking and tweeting
 - **TwitterGraphQLRoutes**: Provides endpoints for accessing Twitter's GraphQL API
+- **TwitterV1Routes**: Provides endpoints for accessing Twitter's v1.1 REST API
 
 Future possibilities:
 - Dedicated routes for different Twitter features
@@ -87,6 +89,66 @@ Content-Type: application/json
 
 The GraphQL API uses query IDs to identify operations. These IDs can be found in the documentation submodule at `docs/twitter-api/docs/markdown/GraphQL.md`.
 
+## v1.1 REST API
+
+The Twitter plugin now includes full support for Twitter's v1.1 REST API, allowing direct access to all standard Twitter API endpoints. This is implemented as a passthrough, meaning the plugin automatically supports all v1.1 API endpoints without requiring code changes.
+
+### Usage
+
+The v1.1 API can be accessed through these endpoints:
+
+#### GET /twitter/v1/{endpoint}
+
+For read operations like fetching a user's timeline:
+
+```
+GET /twitter/v1/statuses/home_timeline.json?params={"count":10,"tweet_mode":"extended"}
+```
+
+#### POST /twitter/v1/{endpoint}
+
+For write operations like posting a tweet:
+
+```
+POST /twitter/v1/statuses/update.json
+Content-Type: application/json
+
+{
+  "status": "Hello world from OAuth3 TEE Proxy!"
+}
+```
+
+You can choose to send the body as form data by setting the `is_json` query parameter to `false`:
+
+```
+POST /twitter/v1/statuses/update.json?is_json=false
+Content-Type: application/x-www-form-urlencoded
+
+status=Hello%20world%20from%20OAuth3%20TEE%20Proxy!
+```
+
+#### PUT /twitter/v1/{endpoint}
+
+For update operations:
+
+```
+PUT /twitter/v1/{endpoint}
+```
+
+#### DELETE /twitter/v1/{endpoint}
+
+For delete operations like removing a tweet:
+
+```
+DELETE /twitter/v1/statuses/destroy/1234567890.json
+```
+
+### Scopes
+
+- `twitter.v1`: General permission for all v1.1 API calls
+- `twitter.v1.read`: Permission for read-only v1.1 API calls (GET)
+- `twitter.v1.write`: Permission for write v1.1 API calls (POST, PUT, DELETE)
+
 ## Usage
 
 ### Adding a Twitter Account
@@ -108,6 +170,8 @@ The GraphQL API uses query IDs to identify operations. These IDs can be found in
 - **Posting tweets**: `/twitter/tweet` endpoint with the `tweet.post` scope
 - **Reading tweets**: (planned) with the `tweet.read` scope
 - **Deleting tweets**: (planned) with the `tweet.delete` scope
+- **GraphQL API**: Complete access to Twitter's private GraphQL API through `/twitter/graphql` endpoints
+- **v1.1 REST API**: Complete access to Twitter's v1.1 REST API through `/twitter/v1` endpoints
 
 ## Extending the Plugin
 

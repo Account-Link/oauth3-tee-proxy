@@ -17,11 +17,13 @@ Resource Servers:
 ---------------
 - TwitterApiResourcePlugin: Handles Twitter API operations (tweets, etc.)
 - TwitterGraphQLResourcePlugin: Provides passthrough access to Twitter's private GraphQL API
+- TwitterV1ResourcePlugin: Provides passthrough access to Twitter's v1.1 REST API
 
 Routes:
 ------
 - TwitterRoutes: Provides HTTP endpoints for Twitter functionality
 - TwitterGraphQLRoutes: Provides HTTP endpoints for Twitter's GraphQL API
+- TwitterV1Routes: Provides HTTP endpoints for Twitter's v1.1 REST API
 
 All plugins are automatically registered with the plugin system when this
 package is imported. The plugins implement the standard interfaces defined
@@ -40,6 +42,7 @@ Supported Operations:
 - Reading tweets (planned)
 - Deleting tweets (planned)
 - GraphQL API access (all operations supported as passthrough)
+- v1.1 REST API access (all operations supported as passthrough)
 
 Supported Scopes:
 ---------------
@@ -49,6 +52,9 @@ Supported Scopes:
 - twitter.graphql: Permission to make GraphQL API calls to Twitter
 - twitter.graphql.read: Permission to make read-only GraphQL API calls
 - twitter.graphql.write: Permission to make write GraphQL API calls
+- twitter.v1: Permission to make v1.1 API calls to Twitter
+- twitter.v1.read: Permission to make read-only v1.1 API calls
+- twitter.v1.write: Permission to make write v1.1 API calls
 """
 
 # Import Authorization Servers
@@ -57,9 +63,10 @@ from .auth.cookie import TwitterCookieAuthorizationPlugin
 # Import Resource Servers
 from .resource.api import TwitterApiResourcePlugin
 from .resource.graphql import TwitterGraphQLResourcePlugin
+from .resource.v1 import TwitterV1ResourcePlugin
 
 # Import Routes
-from .routes import TwitterRoutes, TwitterGraphQLRoutes
+from .routes import TwitterRoutes, TwitterGraphQLRoutes, TwitterV1Routes
 
 # Register plugins
 from plugins import register_authorization_plugin, register_resource_plugin, register_route_plugin
@@ -68,8 +75,10 @@ from plugins import register_authorization_plugin, register_resource_plugin, reg
 register_authorization_plugin(TwitterCookieAuthorizationPlugin)
 register_resource_plugin(TwitterApiResourcePlugin)
 register_resource_plugin(TwitterGraphQLResourcePlugin)
+register_resource_plugin(TwitterV1ResourcePlugin)
 register_route_plugin(TwitterRoutes)
 register_route_plugin(TwitterGraphQLRoutes)
+register_route_plugin(TwitterV1Routes)
 
 # Apply patches to the Twitter library
 from .patches import apply_patches
