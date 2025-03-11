@@ -13,3 +13,4 @@ itsdangerous==2.2.0
 telethon==1.29.0
 httpx>=0.25.0
 alembic==1.12.1
+tweepy==4.14.0

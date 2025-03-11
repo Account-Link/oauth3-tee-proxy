@@ -29,7 +29,7 @@ class TwitterAccount(Base):
     Represents a Twitter account linked to a user through one or more authorization methods.
     
     This is the central model that connects a user to their Twitter identity, with relationships
-    to specific authorization methods (like cookies).
+    to specific authorization methods (like cookies or OAuth).
     """
     __tablename__ = "twitter_accounts"
     
@@ -37,6 +37,9 @@ class TwitterAccount(Base):
     user_id = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Flag to indicate if the account can be used for login
+    can_login = Column(Boolean, default=True)
     
     # Authentication methods
     twitter_cookie = Column(String, nullable=True)  # Legacy field for cookie authentication
@@ -47,6 +50,7 @@ class TwitterAccount(Base):
     # Relationships
     user = relationship("User", back_populates="twitter_accounts")
     sessions = relationship("UserSession", back_populates="twitter_account")
+    oauth_credentials = relationship("TwitterOAuthCredential", back_populates="twitter_account")
     
     @property
     def policy(self):
@@ -101,6 +105,29 @@ class UserSession(Base):
 
 
 #
+# OAuth Models
+#
+
+class TwitterOAuthCredential(Base):
+    """
+    Represents OAuth credentials for a Twitter account.
+    
+    This model stores the OAuth tokens and related information for Twitter
+    accounts that are authenticated using the OAuth flow.
+    """
+    __tablename__ = "twitter_oauth_credentials"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    twitter_account_id = Column(String, ForeignKey("twitter_accounts.twitter_id"))
+    oauth_token = Column(String, nullable=False)
+    oauth_token_secret = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship
+    twitter_account = relationship("TwitterAccount", back_populates="oauth_credentials")
+
+
 # Resource Server Models
 #
 
