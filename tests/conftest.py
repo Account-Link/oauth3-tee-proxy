@@ -74,38 +74,45 @@ def app(test_db) -> FastAPI:
 
 
 @pytest.fixture(scope="function")
-def client(app):
+def client(app, monkeypatch):
     """
-    Create a test client for the FastAPI app.
+    Create a test client for the FastAPI app with session patching.
     
-    This creates a custom client that doesn't rely on the specific TestClient versions,
-    since there appears to be a compatibility issue with the current libraries.
-    
-    For now, our test suite only needs basic functionality without complex features.
+    Uses the official FastAPI TestClient with patches for the session property.
     """
-    import httpx
+    from fastapi.testclient import TestClient
+    from unittest.mock import PropertyMock
     
-    class SimpleTestClient:
-        def __init__(self, app):
-            self.app = app
-            self.cookies = {}
-        
-        def post(self, url, data=None, json=None, params=None, headers=None, cookies=None):
-            from fastapi.testclient import TestClient
-            
-            # Use our fixtures for a fresh instance each time that doesn't rely on init params
-            client = TestClient.__new__(TestClient)
-            client.cookies = self.cookies.copy()
-            
-            # Use the internal method directly
-            if data is not None:
-                return client.request("POST", url, data=data, params=params, headers=headers, cookies=cookies)
-            elif json is not None:
-                return client.request("POST", url, json=json, params=params, headers=headers, cookies=cookies)
-            else:
-                return client.request("POST", url, params=params, headers=headers, cookies=cookies)
+    # Create a custom property for Request.session that returns our session data
+    session_data = {}
     
-    return SimpleTestClient(app)
+    # Set up session patching
+    def patch_session(request):
+        from fastapi import Request
+        session_prop = PropertyMock(return_value=session_data)
+        monkeypatch.setattr(Request, "session", session_prop)
+    
+    # Create a TestClient with the app
+    test_client = TestClient(app)
+    
+    # Add a method to set session data
+    def set_session(data):
+        nonlocal session_data
+        session_data.update(data)
+        test_client.cookies.set("session", "test-session")
+        return test_client
+    
+    # Patch session before each request
+    original_request = test_client.request
+    
+    def patched_request(*args, **kwargs):
+        patch_session(test_client)
+        return original_request(*args, **kwargs)
+    
+    test_client.request = patched_request
+    test_client.set_session = set_session
+    
+    return test_client
 
 
 @pytest.fixture(scope="function")

@@ -90,7 +90,7 @@ class TwitterRoutes(RoutePlugin):
         async def submit_cookie(
             response: Response,
             db: Session = Depends(get_db),
-            twitter_cookie: str = Form(...),
+            twitter_cookie: str = Form(..., description="Twitter cookie to submit"),
             request: Request = None
         ):
             """
