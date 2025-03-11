@@ -8,15 +8,17 @@ separation between authorization-related and resource-related models.
 The models are organized as follows:
 - Authorization models: Store credentials and authentication information
 - Resource models: Store information about resource access and usage logs
+- Policy models: Store policy configurations for access control
 """
 
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Table
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Table, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
+import json
 
 from database import Base
-from models import User, PostKey
+from models import User, PostKey, OAuth2Token
 
 #
 # Authorization Server Models
@@ -39,9 +41,45 @@ class TwitterAccount(Base):
     # Authentication methods
     twitter_cookie = Column(String, nullable=True)  # Legacy field for cookie authentication
     
+    # Access policy - stores the policy in JSON format
+    policy_json = Column(String, nullable=True, default=None)
+    
     # Relationships
     user = relationship("User", back_populates="twitter_accounts")
     sessions = relationship("UserSession", back_populates="twitter_account")
+    
+    @property
+    def policy(self):
+        """
+        Get the policy as a dictionary.
+        
+        Returns:
+            dict: The policy as a dictionary, or the default policy if none is set
+        """
+        if not self.policy_json:
+            # Import here to avoid circular imports
+            from plugins.twitter.policy import TwitterPolicy
+            return TwitterPolicy.get_default_policy().to_dict()
+        
+        try:
+            return json.loads(self.policy_json)
+        except json.JSONDecodeError:
+            # If the JSON is invalid, return the default policy
+            from plugins.twitter.policy import TwitterPolicy
+            return TwitterPolicy.get_default_policy().to_dict()
+    
+    @policy.setter
+    def policy(self, policy_dict):
+        """
+        Set the policy from a dictionary.
+        
+        Args:
+            policy_dict (dict): The policy as a dictionary
+        """
+        if policy_dict is None:
+            self.policy_json = None
+        else:
+            self.policy_json = json.dumps(policy_dict)
 
 
 class UserSession(Base):

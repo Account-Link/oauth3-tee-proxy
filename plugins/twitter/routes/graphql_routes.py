@@ -174,6 +174,32 @@ class TwitterGraphQLRoutes(RoutePlugin):
                         detail="Required Twitter plugins not available"
                     )
                 
+                # Check policy access for the requested query_id
+                from plugins.twitter.policy import verify_policy_access, get_operation_info
+                
+                # Get the policy from the Twitter account
+                policy = twitter_account.policy
+                
+                # Verify policy access for the requested query ID
+                operation_info = get_operation_info(query_id)
+                if not operation_info:
+                    logger.warning(f"Unknown GraphQL query ID: {query_id}")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Unknown GraphQL query ID: {query_id}"
+                    )
+                
+                # Check if the operation is allowed by the policy
+                if not verify_policy_access(query_id, policy):
+                    logger.warning(
+                        f"Policy violation: User {token.user_id} attempted to execute "
+                        f"unauthorized GraphQL query {query_id} ({operation_info.get('operation_name', 'unknown')})"
+                    )
+                    raise HTTPException(
+                        status_code=403, 
+                        detail=f"Access to operation '{operation_info.get('operation_name', query_id)}' is not allowed by policy"
+                    )
+                
                 # Parse variables and features if they are strings
                 parsed_variables = None
                 if variables is not None:

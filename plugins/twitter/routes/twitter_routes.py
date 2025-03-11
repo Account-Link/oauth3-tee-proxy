@@ -18,10 +18,10 @@ for HTTP interface aspects.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Security, Form, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, Form, Response, Body, Query, Path
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,12 @@ from oauth2_routes import OAuth2Token, verify_token_and_scopes
 from safety import SafetyFilter, SafetyLevel
 from plugins.twitter.config import get_twitter_settings
 from plugins import RoutePlugin
+from plugins.twitter.policy import (
+    TwitterPolicy, 
+    TWITTER_GRAPHQL_OPERATIONS,
+    get_read_operations,
+    get_write_operations
+)
 
 logger = logging.getLogger(__name__)
 settings = get_twitter_settings()
@@ -217,5 +223,160 @@ class TwitterRoutes(RoutePlugin):
             except Exception as e:
                 logger.error(f"Error posting tweet for user {token.user_id}: {str(e)}", exc_info=True)
                 raise HTTPException(status_code=500, detail="Internal server error")
+        
+        # Add policy-related routes
+        @router.get("/policy")
+        async def get_policy(
+            request: Request,
+            db: Session = Depends(get_db)
+        ):
+            """
+            Get the current policy for the authenticated user's Twitter account.
+            
+            This endpoint returns the policy configuration for the authenticated user's
+            Twitter account, including the allowed operations and categories.
+            
+            Args:
+                request (Request): The HTTP request object
+                db (Session): The database session
+                
+            Returns:
+                Dict[str, Any]: The policy configuration
+            """
+            # Check if user is authenticated via session
+            user_id = request.session.get("user_id")
+            if not user_id:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Authentication required"
+                )
+            
+            # Get the Twitter account
+            twitter_account = db.query(TwitterAccount).filter(
+                TwitterAccount.user_id == user_id
+            ).first()
+            
+            if not twitter_account:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Twitter account not found"
+                )
+            
+            # Return the policy
+            return twitter_account.policy
+        
+        @router.put("/policy")
+        async def set_policy(
+            policy: Dict[str, Any] = Body(...),
+            request: Request = None,
+            db: Session = Depends(get_db)
+        ):
+            """
+            Set the policy for the authenticated user's Twitter account.
+            
+            This endpoint allows users to configure the policy for their Twitter account,
+            specifying which operations are allowed.
+            
+            Args:
+                policy (Dict[str, Any]): The policy configuration
+                request (Request): The HTTP request object
+                db (Session): The database session
+                
+            Returns:
+                Dict[str, Any]: Status message
+            """
+            # Check if user is authenticated via session
+            user_id = request.session.get("user_id")
+            if not user_id:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Authentication required"
+                )
+            
+            # Get the Twitter account
+            twitter_account = db.query(TwitterAccount).filter(
+                TwitterAccount.user_id == user_id
+            ).first()
+            
+            if not twitter_account:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Twitter account not found"
+                )
+            
+            # Validate the policy
+            # Create a TwitterPolicy object to validate the policy
+            try:
+                twitter_policy = TwitterPolicy.from_dict(policy)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid policy configuration: {str(e)}"
+                )
+            
+            # Set the policy
+            twitter_account.policy = policy
+            db.commit()
+            
+            return {"status": "success", "message": "Policy updated"}
+        
+        @router.get("/policy/operations")
+        async def get_operations(
+            category: Optional[str] = Query(None, description="Filter operations by category (read or write)")
+        ):
+            """
+            Get the available operations for Twitter GraphQL API.
+            
+            This endpoint returns the available operations for the Twitter GraphQL API,
+            optionally filtered by category.
+            
+            Args:
+                category (Optional[str]): Filter operations by category (read or write)
+                
+            Returns:
+                Dict[str, Any]: The available operations
+            """
+            if category == "read":
+                operations = {
+                    query_id: TWITTER_GRAPHQL_OPERATIONS[query_id]
+                    for query_id in get_read_operations()
+                }
+            elif category == "write":
+                operations = {
+                    query_id: TWITTER_GRAPHQL_OPERATIONS[query_id]
+                    for query_id in get_write_operations()
+                }
+            else:
+                operations = TWITTER_GRAPHQL_OPERATIONS
+            
+            return operations
+        
+        @router.get("/policy/templates/{template_name}")
+        async def get_policy_template(
+            template_name: str = Path(..., description="The name of the template to get")
+        ):
+            """
+            Get a policy template.
+            
+            This endpoint returns a predefined policy template that can be used
+            as a starting point for configuring access policies.
+            
+            Args:
+                template_name (str): The name of the template to get
+                
+            Returns:
+                Dict[str, Any]: The policy template
+            """
+            if template_name == "default":
+                return TwitterPolicy.get_default_policy().to_dict()
+            elif template_name == "read_only":
+                return TwitterPolicy.get_read_only_policy().to_dict()
+            elif template_name == "write_only":
+                return TwitterPolicy.get_write_only_policy().to_dict()
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Template '{template_name}' not found"
+                )
                 
         return router
