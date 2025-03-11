@@ -15,10 +15,11 @@ Authorization servers handle user authentication with Twitter and credential man
 
 Current implementations:
 - **TwitterCookieAuthorizationPlugin**: Handles authentication using browser cookies
+- **TwitterOAuthAuthorizationPlugin**: Handles authentication using Twitter's OAuth 1.0a flow
 
 Future possibilities:
-- Twitter OAuth2 Authorization
 - Twitter API Key Authorization
+- Twitter OAuth2 Authorization (when Twitter supports it)
 
 ### Resource Servers
 
@@ -45,6 +46,7 @@ Routes handle HTTP endpoints and user interactions. They are responsible for:
 
 Current implementations:
 - **TwitterRoutes**: Provides endpoints for account linking and tweeting
+- **TwitterOAuthRoutes**: Provides endpoints for Twitter OAuth authentication and account linking
 - **TwitterGraphQLRoutes**: Provides endpoints for accessing Twitter's GraphQL API
 - **TwitterV1Routes**: Provides endpoints for accessing Twitter's v1.1 REST API
 
@@ -148,15 +150,59 @@ DELETE /twitter/v1/statuses/destroy/1234567890.json
 - `twitter.v1`: General permission for all v1.1 API calls
 - `twitter.v1.read`: Permission for read-only v1.1 API calls (GET)
 - `twitter.v1.write`: Permission for write v1.1 API calls (POST, PUT, DELETE)
+- `twitter.graphql`: General permission for all GraphQL API calls
+- `twitter.graphql.read`: Permission for read-only GraphQL API calls
+- `twitter.graphql.write`: Permission for write GraphQL API calls
+- `twitter_oauth1.auth`: Permission to authenticate using Twitter OAuth
+- `twitter_oauth1.tweet`: Permission to post tweets using Twitter OAuth
 
 ## Usage
 
 ### Adding a Twitter Account
 
+#### Using Cookie Authentication
+
 1. User logs in to the OAuth3 TEE Proxy
 2. User submits their Twitter cookie to the `/twitter/cookie` endpoint
 3. The cookie is validated and stored securely in the TEE Proxy
 4. The Twitter account is now linked to the user's profile
+
+#### Using OAuth Authentication (Recommended)
+
+1. User navigates to the OAuth3 TEE Proxy
+2. User clicks on "Login with Twitter" or "Link Twitter Account"
+3. User is redirected to Twitter to authorize the application
+4. After authorization, user is redirected back to the TEE Proxy
+5. The OAuth tokens are validated and stored securely in the TEE Proxy
+6. The Twitter account is now linked to the user's profile
+
+### Twitter OAuth API Endpoints
+
+The following OAuth endpoints are available:
+
+#### GET /twitter/oauth/login
+
+Initiates the Twitter OAuth login flow.
+
+Query parameters:
+- `next`: (Optional) URL to redirect to after successful authentication
+- `callback_url`: (Optional) Custom callback URL for the OAuth flow
+
+#### GET /twitter/oauth/link
+
+Links a Twitter account to an existing user using OAuth.
+
+Query parameters:
+- `next`: (Optional) URL to redirect to after successful linking
+- `callback_url`: (Optional) Custom callback URL for the OAuth flow
+
+#### GET /twitter/oauth/callback
+
+Handles the callback from Twitter after user authorization.
+
+Query parameters:
+- `oauth_token`: The OAuth token returned by Twitter
+- `oauth_verifier`: The OAuth verifier returned by Twitter
 
 ### Using Twitter Resources
 
@@ -172,6 +218,67 @@ DELETE /twitter/v1/statuses/destroy/1234567890.json
 - **Deleting tweets**: (planned) with the `tweet.delete` scope
 - **GraphQL API**: Complete access to Twitter's private GraphQL API through `/twitter/graphql` endpoints
 - **v1.1 REST API**: Complete access to Twitter's v1.1 REST API through `/twitter/v1` endpoints
+- **OAuth Authentication**: Twitter OAuth 1.0a authentication through `/twitter/oauth` endpoints
+
+## Access Control Policies
+
+The Twitter plugin includes a comprehensive policy system that allows fine-grained control over which GraphQL operations can be performed by a client. Policies can be managed through the following endpoints:
+
+### GET /twitter/policy
+
+Get the current policy for the authenticated user's Twitter account.
+
+### PUT /twitter/policy
+
+Set the policy for the authenticated user's Twitter account. The request body should be a JSON object containing:
+- `allowed_operations`: Array of GraphQL query IDs that are allowed
+- `allowed_categories`: Array of operation categories ("read", "write") that are allowed
+
+Example:
+```json
+{
+  "allowed_operations": ["PFIxTk8owMoZgiMccP0r4g", "8sXVIfHXt5J5Mk5nY6jF0w"],
+  "allowed_categories": ["read"]
+}
+```
+
+### GET /twitter/policy/operations
+
+Get the available operations for Twitter GraphQL API, optionally filtered by category.
+
+Query parameters:
+- `category`: (Optional) Filter operations by category ("read" or "write")
+
+### GET /twitter/policy/templates/{template_name}
+
+Get a policy template. Available templates:
+- `default`: Full access to all operations
+- `read_only`: Access to read operations only
+- `write_only`: Access to write operations only
+
+## Configuration
+
+Edit `.env` file to add necessary settings:
+
+```bash
+# Twitter API settings
+TWITTER_CONSUMER_KEY=your_consumer_key
+TWITTER_CONSUMER_SECRET=your_consumer_secret
+TWITTER_OAUTH_CALLBACK_URL=http://localhost:8000/twitter/oauth/callback
+```
+
+## Database Migrations
+
+The Twitter plugin requires database migrations to set up the necessary tables and columns. Run the following command to apply the migrations:
+
+```bash
+python migrations.py apply
+```
+
+This will:
+1. Add the `policy_json` column to the `twitter_accounts` table
+2. Add the `can_login` column to the `twitter_accounts` table
+3. Create the `twitter_oauth_credentials` table for storing OAuth tokens
 
 ## Extending the Plugin
 
