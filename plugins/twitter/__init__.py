@@ -59,26 +59,27 @@ Supported Scopes:
 
 # Import Authorization Servers
 from .auth.cookie import TwitterCookieAuthorizationPlugin
+from .auth.oauth import TwitterOAuthAuthorizationPlugin
 
 # Import Resource Servers
-from .resource.api import TwitterApiResourcePlugin
-from .resource.graphql import TwitterGraphQLResourcePlugin
-from .resource.v1 import TwitterV1ResourcePlugin
+from .resource import TwitterApiResourcePlugin, TwitterGraphQLResourcePlugin, TwitterV1ResourcePlugin
 
 # Import Routes
-from .routes import TwitterRoutes, TwitterGraphQLRoutes, TwitterV1Routes
+from .routes import TwitterRoutes, TwitterGraphQLRoutes, TwitterV1Routes, TwitterOAuthRoutes
 
 # Register plugins
 from plugins import register_authorization_plugin, register_resource_plugin, register_route_plugin
 
 # Automatically register the plugins when this package is imported
 register_authorization_plugin(TwitterCookieAuthorizationPlugin)
+register_authorization_plugin(TwitterOAuthAuthorizationPlugin)
 register_resource_plugin(TwitterApiResourcePlugin)
 register_resource_plugin(TwitterGraphQLResourcePlugin)
 register_resource_plugin(TwitterV1ResourcePlugin)
 register_route_plugin(TwitterRoutes)
 register_route_plugin(TwitterGraphQLRoutes)
 register_route_plugin(TwitterV1Routes)
+register_route_plugin(TwitterOAuthRoutes)
 
 # Apply patches to the Twitter library
 from .patches import apply_patches

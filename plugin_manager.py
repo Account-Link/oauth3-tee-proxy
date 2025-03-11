@@ -128,6 +128,7 @@ class PluginManager:
         Returns:
             Optional[Type[AuthorizationPlugin]]: The plugin class if found, None otherwise
         """
+        from plugins import get_authorization_plugin
         return get_authorization_plugin(service_name)
     
     def get_resource_plugin(self, service_name: str) -> Optional[Type[ResourcePlugin]]:
@@ -143,6 +144,7 @@ class PluginManager:
         Returns:
             Optional[Type[ResourcePlugin]]: The plugin class if found, None otherwise
         """
+        from plugins import get_resource_plugin
         return get_resource_plugin(service_name)
     
     def get_all_authorization_plugins(self) -> Dict[str, Type[AuthorizationPlugin]]:
@@ -156,6 +158,7 @@ class PluginManager:
         Returns:
             Dict[str, Type[AuthorizationPlugin]]: Dictionary of all registered authorization plugins
         """
+        from plugins import get_all_authorization_plugins
         return get_all_authorization_plugins()
     
     def get_all_resource_plugins(self) -> Dict[str, Type[ResourcePlugin]]:
@@ -169,6 +172,7 @@ class PluginManager:
         Returns:
             Dict[str, Type[ResourcePlugin]]: Dictionary of all registered resource plugins
         """
+        from plugins import get_all_resource_plugins
         return get_all_resource_plugins()
     
     def create_authorization_plugin(self, service_name: str, **kwargs) -> Optional[AuthorizationPlugin]:
@@ -259,6 +263,7 @@ class PluginManager:
         Returns:
             Dict[str, Type[RoutePlugin]]: Dictionary of all registered route plugins
         """
+        from plugins import get_all_route_plugin_classes
         return get_all_route_plugin_classes()
     
     def create_route_plugin(self, service_name: str, **kwargs) -> Optional[RoutePlugin]:
@@ -277,6 +282,7 @@ class PluginManager:
             Optional[RoutePlugin]: A plugin instance if the plugin was found,
                                   None otherwise
         """
+        from plugins import get_route_plugin
         plugin_class = get_route_plugin(service_name)
         if plugin_class:
             return plugin_class(**kwargs)

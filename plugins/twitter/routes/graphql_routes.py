@@ -23,7 +23,12 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from plugins.twitter.models import TwitterAccount
-from oauth2_routes import OAuth2Token, verify_token_and_scopes
+from models import OAuth2Token
+
+# Lazily import verify_token_and_scopes to avoid circular imports
+def get_verify_token_function():
+    from oauth2_routes import verify_token_and_scopes
+    return verify_token_and_scopes
 from plugins import RoutePlugin
 
 logger = logging.getLogger(__name__)
@@ -62,7 +67,7 @@ class TwitterGraphQLRoutes(RoutePlugin):
             query_id: str,
             variables: Optional[str] = Query(None),
             features: Optional[str] = Query(None),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.graphql", "twitter.graphql.read"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.graphql", "twitter.graphql.read"]),
             db: Session = Depends(get_db)
         ):
             """
@@ -94,7 +99,7 @@ class TwitterGraphQLRoutes(RoutePlugin):
         async def execute_graphql_post(
             query_id: str,
             body: Dict[str, Any] = Body({}),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.graphql", "twitter.graphql.write"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.graphql", "twitter.graphql.write"]),
             db: Session = Depends(get_db)
         ):
             """

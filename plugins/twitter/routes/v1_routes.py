@@ -24,7 +24,12 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from plugins.twitter.models import TwitterAccount
-from oauth2_routes import OAuth2Token, verify_token_and_scopes
+from models import OAuth2Token
+
+# Lazily import verify_token_and_scopes to avoid circular imports
+def get_verify_token_function():
+    from oauth2_routes import verify_token_and_scopes
+    return verify_token_and_scopes
 from plugins import RoutePlugin
 
 logger = logging.getLogger(__name__)
@@ -63,7 +68,7 @@ class TwitterV1Routes(RoutePlugin):
             endpoint: str = Path(..., description="The v1.1 API endpoint path"),
             response: Response = None,
             params: Optional[str] = Query(None, description="JSON-encoded query parameters"),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.v1", "twitter.v1.read"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.v1", "twitter.v1.read"]),
             db: Session = Depends(get_db)
         ):
             """
@@ -99,7 +104,7 @@ class TwitterV1Routes(RoutePlugin):
             params: Optional[str] = Query(None, description="JSON-encoded query parameters"),
             body: Dict[str, Any] = Body({}, description="Request body"),
             is_json: bool = Query(True, description="Whether the body should be sent as JSON or form data"),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.v1", "twitter.v1.write"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.v1", "twitter.v1.write"]),
             db: Session = Depends(get_db)
         ):
             """
@@ -137,7 +142,7 @@ class TwitterV1Routes(RoutePlugin):
             params: Optional[str] = Query(None, description="JSON-encoded query parameters"),
             body: Dict[str, Any] = Body({}, description="Request body"),
             is_json: bool = Query(True, description="Whether the body should be sent as JSON or form data"),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.v1", "twitter.v1.write"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.v1", "twitter.v1.write"]),
             db: Session = Depends(get_db)
         ):
             """
@@ -173,7 +178,7 @@ class TwitterV1Routes(RoutePlugin):
             endpoint: str = Path(..., description="The v1.1 API endpoint path"),
             response: Response = None,
             params: Optional[str] = Query(None, description="JSON-encoded query parameters"),
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter.v1", "twitter.v1.write"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["twitter.v1", "twitter.v1.write"]),
             db: Session = Depends(get_db)
         ):
             """

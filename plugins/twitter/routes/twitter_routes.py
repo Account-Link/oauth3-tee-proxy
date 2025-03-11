@@ -27,7 +27,12 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from plugins.twitter.models import TwitterAccount, TweetLog
-from oauth2_routes import OAuth2Token, verify_token_and_scopes
+from models import OAuth2Token
+
+# Lazily import verify_token_and_scopes to avoid circular imports
+def get_verify_token_function():
+    from oauth2_routes import verify_token_and_scopes
+    return verify_token_and_scopes
 from safety import SafetyFilter, SafetyLevel
 from plugins.twitter.config import get_twitter_settings
 from plugins import RoutePlugin
@@ -151,7 +156,7 @@ class TwitterRoutes(RoutePlugin):
         @router.post("/tweet")
         async def post_tweet(
             tweet_data: TweetRequest,
-            token: OAuth2Token = Security(verify_token_and_scopes, scopes=["tweet.post"]),
+            token: OAuth2Token = Security(get_verify_token_function(), scopes=["tweet.post"]),
             db: Session = Depends(get_db)
         ):
             """Post a tweet using the authenticated user's Twitter account"""

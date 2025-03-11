@@ -5,8 +5,13 @@ Shared pytest fixtures and configuration
 import asyncio
 import pytest
 import os
+import sys
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+# Add the project root to Python path to make imports work
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -163,6 +168,7 @@ def mock_twitter_cookie_auth_plugin(monkeypatch):
             return credentials.get("cookie", "")
     
     # Monkeypatch the plugin_manager to return our mock plugin
+    from plugin_manager import plugin_manager
     original_create_auth_plugin = plugin_manager.create_authorization_plugin
     
     def mock_create_authorization_plugin(service_name):
@@ -209,6 +215,7 @@ def mock_twitter_oauth_auth_plugin(monkeypatch):
             return json.dumps(credentials)
     
     # Monkeypatch the plugin_manager to return our mock plugin
+    from plugin_manager import plugin_manager
     original_create_auth_plugin = plugin_manager.create_authorization_plugin
     
     def mock_create_authorization_plugin(service_name):
@@ -249,6 +256,7 @@ def mock_twitter_resource_plugin(monkeypatch):
             return "test-tweet-id"
     
     # Monkeypatch the plugin_manager to return our mock plugin
+    from plugin_manager import plugin_manager
     original_create_resource_plugin = plugin_manager.create_resource_plugin
     
     def mock_create_resource_plugin(service_name):
