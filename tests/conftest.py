@@ -13,9 +13,7 @@ from sqlalchemy.pool import StaticPool
 from typing import Dict, Any, Generator, AsyncGenerator
 
 from database import Base, get_db
-from plugin_manager import plugin_manager
-from models import User, TwitterAccount, WebAuthnCredential
-from plugins.twitter.models import TwitterOAuthCredential
+from models import User, WebAuthnCredential
 
 # Set test environment variables
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -95,10 +93,13 @@ def test_user(test_db) -> User:
 
 
 @pytest.fixture(scope="function")
-def test_twitter_account(test_db, test_user) -> TwitterAccount:
+def test_twitter_account(test_db, test_user):
     """
     Create a test Twitter account linked to the test user.
     """
+    # Import TwitterAccount here to avoid circular imports
+    from plugins.twitter.models import TwitterAccount
+    
     twitter_account = TwitterAccount(
         twitter_id="test-twitter-id",
         user_id=test_user.id,
@@ -111,7 +112,7 @@ def test_twitter_account(test_db, test_user) -> TwitterAccount:
 
 
 @pytest.fixture(scope="function")
-def test_twitter_cookie_credentials(test_db, test_twitter_account) -> TwitterAccount:
+def test_twitter_cookie_credentials(test_db, test_twitter_account):
     """
     Add cookie credentials to the test Twitter account.
     """
@@ -123,10 +124,13 @@ def test_twitter_cookie_credentials(test_db, test_twitter_account) -> TwitterAcc
 
 
 @pytest.fixture(scope="function")
-def test_twitter_oauth_credentials(test_db, test_twitter_account) -> TwitterOAuthCredential:
+def test_twitter_oauth_credentials(test_db, test_twitter_account):
     """
     Create test OAuth credentials for the test Twitter account.
     """
+    # Import TwitterOAuthCredential here to avoid circular imports
+    from plugins.twitter.models import TwitterOAuthCredential
+    
     oauth_cred = TwitterOAuthCredential(
         twitter_account_id=test_twitter_account.twitter_id,
         oauth_token="test-oauth-token",

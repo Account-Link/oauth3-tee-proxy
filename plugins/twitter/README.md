@@ -17,10 +17,6 @@ Current implementations:
 - **TwitterCookieAuthorizationPlugin**: Handles authentication using browser cookies
 - **TwitterOAuthAuthorizationPlugin**: Handles authentication using Twitter's OAuth 1.0a flow
 
-Future possibilities:
-- Twitter API Key Authorization
-- Twitter OAuth2 Authorization (when Twitter supports it)
-
 ### Resource Servers
 
 Resource servers handle interaction with Twitter APIs and resources. They are responsible for:
