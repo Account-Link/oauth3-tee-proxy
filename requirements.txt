@@ -10,4 +10,4 @@ twitter-api-client==0.10.9
 webauthn==2.0.0
 python-jose[cryptography] 
 itsdangerous==2.2.0
-telethon==1.29.0
+telethon==1.29.0httpx>=0.25.0

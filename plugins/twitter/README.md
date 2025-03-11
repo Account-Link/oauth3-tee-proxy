@@ -29,10 +29,11 @@ Resource servers handle interaction with Twitter APIs and resources. They are re
 
 Current implementations:
 - **TwitterApiResourcePlugin**: Handles Twitter API operations (tweets, etc.)
+- **TwitterGraphQLResourcePlugin**: Provides passthrough access to Twitter's private GraphQL API
 
 Future possibilities:
-- Twitter GraphQL API Resource
 - Twitter Media Resource
+- Other specialized Twitter API resources
 
 ### Routes
 
@@ -43,9 +44,48 @@ Routes handle HTTP endpoints and user interactions. They are responsible for:
 
 Current implementations:
 - **TwitterRoutes**: Provides endpoints for account linking and tweeting
+- **TwitterGraphQLRoutes**: Provides endpoints for accessing Twitter's GraphQL API
 
 Future possibilities:
 - Dedicated routes for different Twitter features
+
+## GraphQL API
+
+The Twitter plugin now includes support for Twitter's private GraphQL API, allowing direct access to all GraphQL operations that Twitter's web interface uses. This is implemented as a passthrough, meaning the plugin automatically supports new GraphQL operations without requiring code changes.
+
+### Usage
+
+The GraphQL API can be accessed through two endpoints:
+
+#### GET /twitter/graphql/{query_id}
+
+For read operations, used with query parameters:
+
+```
+GET /twitter/graphql/PFIxTk8owMoZgiMccP0r4g?variables={"userId":"123456"}&features={"feature1":true}
+```
+
+#### POST /twitter/graphql/{query_id}
+
+For write operations, used with JSON body:
+
+```
+POST /twitter/graphql/aQKrduk_DA46XfOQDkcEng
+Content-Type: application/json
+
+{
+  "variables": {
+    "userId": "123456"
+  },
+  "features": {
+    "feature1": true
+  }
+}
+```
+
+### Query IDs
+
+The GraphQL API uses query IDs to identify operations. These IDs can be found in the documentation submodule at `docs/twitter-api/docs/markdown/GraphQL.md`.
 
 ## Usage
 

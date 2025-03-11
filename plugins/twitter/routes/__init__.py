@@ -14,11 +14,13 @@ on HTTP interface definitions.
 Routes are grouped by functionality and include:
 - Account routes: Endpoints for linking and managing Twitter accounts
 - Tweet routes: Endpoints for posting and managing tweets
+- GraphQL routes: Endpoints for interacting with Twitter's GraphQL API
 
 All routes are mounted under the "/twitter" prefix in the main application.
 """
 
 from .twitter_routes import TwitterRoutes
+from .graphql_routes import TwitterGraphQLRoutes
 
 # This makes it easier to import the routes in one go
-__all__ = ['TwitterRoutes']
+__all__ = ['TwitterRoutes', 'TwitterGraphQLRoutes']
