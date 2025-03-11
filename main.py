@@ -97,6 +97,23 @@ async def register_page(request: Request):
 async def submit_cookie_page(request: Request):
     return templates.TemplateResponse("submit_cookie.html", {"request": request})
 
+
+@app.get("/error", response_class=HTMLResponse)
+async def error_page(request: Request, message: str, back_url: str = "/"):
+    """
+    Display an error page with a custom message.
+    
+    Args:
+        request (Request): The HTTP request object
+        message (str): The error message to display
+        back_url (str): The URL to go back to
+    """
+    return templates.TemplateResponse("error.html", {
+        "request": request,
+        "error_message": message,
+        "back_url": back_url
+    })
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("webauthn_login.html", {"request": request})
@@ -130,6 +147,9 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         twitter_accounts = db.query(TwitterAccount).filter(
             TwitterAccount.user_id == user_id
         ).all()
+        
+        # Note: We rely on the actual authentication process to populate user profile information
+        # No mock data is used here - the user's real profile data is stored during authentication
     
     # Check if Telegram plugin is available
     if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
@@ -162,6 +182,45 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "telegram_accounts": telegram_accounts,
             "oauth2_tokens": oauth2_tokens,
             "available_scopes": available_scopes.keys()
+        }
+    )
+
+@app.get("/graphql-playground", response_class=HTMLResponse)
+async def graphql_playground(request: Request, db: Session = Depends(get_db)):
+    """
+    Twitter GraphQL API playground for testing queries.
+    
+    This page provides a user interface for testing Twitter GraphQL queries through
+    the OAuth3 TEE Proxy. It allows selecting from predefined operations or entering
+    custom query IDs, and supports both GET and POST methods.
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse(url="/login")
+    
+    # Get active OAuth2 tokens with appropriate scopes
+    oauth2_tokens = db.query(OAuth2Token).filter(
+        OAuth2Token.user_id == user_id,
+        OAuth2Token.is_active == True,
+        OAuth2Token.expires_at > datetime.utcnow(),
+        OAuth2Token.scopes.contains("twitter.graphql")
+    ).all()
+    
+    # Import the Twitter GraphQL operations - use a lazy import to avoid circular dependencies
+    from plugins.twitter.policy import TWITTER_GRAPHQL_OPERATIONS
+    
+    return templates.TemplateResponse(
+        "graphql_playground.html",
+        {
+            "request": request,
+            "user": user,
+            "oauth2_tokens": oauth2_tokens,
+            "operations": TWITTER_GRAPHQL_OPERATIONS
         }
     )
 

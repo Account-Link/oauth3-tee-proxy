@@ -24,6 +24,62 @@
                 justify-content: space-between;
                 align-items: center;
             }
+            
+            .account-info {
+                flex-grow: 1;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .account-avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                overflow: hidden;
+                flex-shrink: 0;
+            }
+            
+            .avatar {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            
+            .account-details {
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+            }
+            
+            .display-name {
+                font-weight: bold;
+                font-size: 16px;
+            }
+            
+            .username {
+                color: #0066cc;
+                font-size: 14px;
+            }
+            
+            .username a {
+                text-decoration: none;
+                color: #0066cc;
+            }
+            
+            .username a:hover {
+                text-decoration: underline;
+            }
+            
+            .twitter-id, .added-date {
+                font-size: 12px;
+                color: #666;
+            }
+            
+            .account-actions {
+                display: flex;
+                gap: 10px;
+            }
             .token-form {
                 margin-top: 20px;
             }
@@ -67,21 +123,52 @@
     <body>
         <h1>Welcome, {{ user.username }}</h1>
 
+        <div style="margin-bottom: 20px; text-align: right;">
+            <a href="/graphql-playground" class="button" style="background-color: #1DA1F2;">Twitter GraphQL Playground</a>
+        </div>
+
         <div class="dashboard-section">
             <h2>Your Twitter Accounts</h2>
             {% if twitter_accounts %}
                 <ul class="account-list">
                     {% for account in twitter_accounts %}
                         <li class="account-item">
-                            <span>Twitter ID: {{ account.twitter_id }}</span>
-                            <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
+                            <div class="account-info">
+                                {% if account.profile_image_url %}
+                                <div class="account-avatar">
+                                    <img src="{{ account.profile_image_url }}" alt="{{ account.username or 'Twitter User' }}" class="avatar">
+                                </div>
+                                {% endif %}
+                                <div class="account-details">
+                                    {% if account.display_name %}
+                                    <div class="display-name">{{ account.display_name }}</div>
+                                    {% endif %}
+                                    
+                                    {% if account.username %}
+                                    <div class="username">
+                                        <a href="https://twitter.com/{{ account.username }}" target="_blank">@{{ account.username }}</a>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="twitter-id">ID: {{ account.twitter_id }}</div>
+                                    <div class="added-date">Added: {{ account.created_at.strftime('%Y-%m-%d') }}</div>
+                                </div>
+                            </div>
+                            <div class="account-actions">
+                                <button class="button delete-button" onclick="deleteTwitterAccount('{{ account.twitter_id }}')">Delete</button>
+                            </div>
                         </li>
                     {% endfor %}
                 </ul>
+                <div class="button-group" style="margin-top: 15px;">
+                    <a href="/submit-cookie" class="button">Add Twitter Account</a>
+                </div>
             {% else %}
                 <p>No Twitter accounts linked yet.</p>
+                <div class="button-group" style="margin-top: 15px;">
+                    <a href="/submit-cookie" class="button">Add Twitter Account</a>
+                </div>
             {% endif %}
-            <a href="/submit-cookie" class="button">Add Twitter Account</a>
         </div>
 
         <div class="dashboard-section">
@@ -217,6 +304,26 @@
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error refreshing channels');
+                }
+            }
+            
+            async function deleteTwitterAccount(twitterId) {
+                if (!confirm('Are you sure you want to delete this Twitter account?')) return;
+                
+                try {
+                    const response = await fetch(`/twitter/accounts/${twitterId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok || response.redirected) {
+                        window.location.href = response.redirected ? response.url : '/dashboard';
+                    } else {
+                        const error = await response.json();
+                        alert(error.detail || 'Failed to delete Twitter account');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error deleting Twitter account');
                 }
             }
         </script>

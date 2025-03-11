@@ -44,6 +44,11 @@ class TwitterAccount(Base):
     # Authentication methods
     twitter_cookie = Column(String, nullable=True)  # Legacy field for cookie authentication
     
+    # Twitter user information
+    username = Column(String, nullable=True)  # Twitter username/handle
+    display_name = Column(String, nullable=True)  # User's display name
+    profile_image_url = Column(String, nullable=True)  # URL to profile image
+    
     # Access policy - stores the policy in JSON format
     policy_json = Column(String, nullable=True, default=None)
     

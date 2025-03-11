@@ -22,6 +22,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, Form, Response, Body, Query, Path
+from fastapi.responses import RedirectResponse, HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -113,16 +114,47 @@ class TwitterRoutes(RoutePlugin):
                         detail="Twitter cookie authorization plugin not available"
                     )
                 
+                # Parse the cookie - log the first 10 characters for debugging
+                logger.info(f"Processing cookie submission, cookie starts with: {twitter_cookie[:10]}...")
+                
                 # Parse and validate the cookie
-                credentials = twitter_auth.credentials_from_string(twitter_cookie)
-                if not await twitter_auth.validate_credentials(credentials):
+                try:
+                    credentials = twitter_auth.credentials_from_string(twitter_cookie)
+                except ValueError as e:
+                    logger.error(f"Error parsing cookie: {str(e)}")
                     raise HTTPException(
                         status_code=400, 
-                        detail="Invalid Twitter cookie. Please provide a valid cookie."
+                        detail=f"Invalid Twitter cookie format: {str(e)}. Please provide the cookie in the format: auth_token=YOUR_COOKIE_VALUE"
                     )
                 
-                # Get Twitter ID from the cookie
-                twitter_id = await twitter_auth.get_user_identifier(credentials)
+                # Validate credentials
+                is_valid = await twitter_auth.validate_credentials(credentials)
+                if not is_valid:
+                    logger.error("Credentials validation failed")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Invalid Twitter cookie. The cookie may be expired or invalid. Please provide a fresh auth_token cookie from a logged-in Twitter session."
+                    )
+                
+                # Get Twitter ID and profile information from the cookie
+                try:
+                    # Get basic user ID
+                    twitter_id = await twitter_auth.get_user_identifier(credentials)
+                    
+                    # Get additional profile information if available
+                    profile_info = await twitter_auth.get_user_profile(credentials)
+                    
+                    logger.info(f"Retrieved Twitter profile info: {profile_info}")
+                    username = profile_info.get('username')
+                    display_name = profile_info.get('name')
+                    profile_image_url = profile_info.get('profile_image_url')
+                    
+                except ValueError as e:
+                    logger.error(f"Error getting Twitter ID: {str(e)}")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Could not get Twitter ID: {str(e)}"
+                    )
                 
                 # Check if account already exists
                 existing_account = db.query(TwitterAccount).filter(
@@ -132,25 +164,55 @@ class TwitterRoutes(RoutePlugin):
                 if existing_account:
                     if existing_account.user_id and existing_account.user_id != request.session.get("user_id"):
                         raise HTTPException(status_code=400, detail="Twitter account already linked to another user")
+                    
+                    # Update existing account with fresh info
                     existing_account.twitter_cookie = twitter_cookie
                     existing_account.updated_at = datetime.utcnow()
                     existing_account.user_id = request.session.get("user_id")
+                    
+                    # Update profile information if available
+                    if username:
+                        existing_account.username = username
+                    if display_name:
+                        existing_account.display_name = display_name
+                    if profile_image_url:
+                        existing_account.profile_image_url = profile_image_url
                 else:
+                    # Create new account with all available info
                     account = TwitterAccount(
                         twitter_id=twitter_id,
                         twitter_cookie=twitter_cookie,
-                        user_id=request.session.get("user_id")
+                        user_id=request.session.get("user_id"),
+                        username=username,
+                        display_name=display_name,
+                        profile_image_url=profile_image_url
                     )
                     db.add(account)
                 
                 db.commit()
                 logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
-                return {"status": "success", "message": "Twitter account linked successfully"}
+                # Return a redirect to the dashboard instead of a JSON response
+                return RedirectResponse(url="/dashboard", status_code=303)
+            except HTTPException:
+                # Re-raise HTTP exceptions directly to preserve their status code and detail
+                raise
+            except ValueError as e:
+                # Handle ValueError separately with a 400 status code
+                error_message = f"Invalid Twitter cookie: {str(e)}"
+                logger.error(f"Value error processing cookie: {str(e)}", exc_info=True)
+                # Redirect to error page instead of raising an HTTP exception
+                return RedirectResponse(
+                    url=f"/error?message={error_message}&back_url=/twitter-login", 
+                    status_code=303
+                )
             except Exception as e:
+                # Log any other unexpected errors
+                error_message = f"An error occurred while processing your request: {str(e)}"
                 logger.error(f"Error processing cookie submission: {str(e)}", exc_info=True)
-                raise HTTPException(
-                    status_code=500, 
-                    detail="An unexpected error occurred while processing your request."
+                # Redirect to error page
+                return RedirectResponse(
+                    url=f"/error?message={error_message}&back_url=/twitter-login", 
+                    status_code=303
                 )
         
         @router.post("/tweet")
@@ -383,5 +445,60 @@ class TwitterRoutes(RoutePlugin):
                     status_code=404,
                     detail=f"Template '{template_name}' not found"
                 )
+        
+        @router.delete("/accounts/{twitter_id}")
+        async def delete_twitter_account(
+            twitter_id: str,
+            request: Request,
+            db: Session = Depends(get_db)
+        ):
+            """
+            Delete a Twitter account association.
+            
+            This endpoint removes the association between a user and a Twitter account,
+            deleting the Twitter account record from the database.
+            
+            Args:
+                twitter_id (str): The Twitter ID to delete
+                request (Request): The FastAPI request object
+                db (Session): Database session dependency
+                
+            Returns:
+                Dict[str, Any]: Status message
+            """
+            # Check if user is authenticated via session
+            user_id = request.session.get("user_id")
+            if not user_id:
+                return RedirectResponse(url="/login", status_code=303)
+            
+            try:
+                # Get the Twitter account
+                twitter_account = db.query(TwitterAccount).filter(
+                    TwitterAccount.twitter_id == twitter_id,
+                    TwitterAccount.user_id == user_id
+                ).first()
+                
+                if not twitter_account:
+                    error_message = "Twitter account not found or does not belong to you"
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/dashboard",
+                        status_code=303
+                    )
+                
+                # Delete the account
+                db.delete(twitter_account)
+                db.commit()
+                
+                logger.info(f"Successfully deleted Twitter account {twitter_id} for user {user_id}")
+                return RedirectResponse(url="/dashboard", status_code=303)
+                
+            except Exception as e:
+                logger.error(f"Error deleting Twitter account: {str(e)}", exc_info=True)
+                error_message = f"Error deleting Twitter account: {str(e)}"
+                return RedirectResponse(
+                    url=f"/error?message={error_message}&back_url=/dashboard",
+                    status_code=303
+                )
+        
                 
         return router
