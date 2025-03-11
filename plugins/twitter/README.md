@@ -4,7 +4,7 @@ This plugin provides Twitter integration for the OAuth3 TEE Proxy, allowing user
 
 ## Architecture
 
-The Twitter plugin follows the OAuth3 separation of concerns between Authorization Servers and Resource Servers:
+The Twitter plugin follows the OAuth3 separation of concerns with three distinct components:
 
 ### Authorization Servers
 
@@ -33,6 +33,19 @@ Current implementations:
 Future possibilities:
 - Twitter GraphQL API Resource
 - Twitter Media Resource
+
+### Routes
+
+Routes handle HTTP endpoints and user interactions. They are responsible for:
+- Providing HTTP endpoints for Twitter functionality
+- Handling request/response formatting
+- Coordinating between authorization and resource servers
+
+Current implementations:
+- **TwitterRoutes**: Provides endpoints for account linking and tweeting
+
+Future possibilities:
+- Dedicated routes for different Twitter features
 
 ## Usage
 

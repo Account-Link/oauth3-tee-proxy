@@ -49,8 +49,10 @@ from plugins import (
     RoutePlugin,
     get_authorization_plugin,
     get_resource_plugin,
+    get_route_plugin,
     get_all_authorization_plugin_classes,
-    get_all_resource_plugin_classes
+    get_all_resource_plugin_classes,
+    get_all_route_plugin_classes
 )
 
 logger = logging.getLogger(__name__)
@@ -247,6 +249,39 @@ class PluginManager:
                     scopes[scope] = f"Permission for {scope}"
         return scopes
         
+    def get_all_route_plugins(self) -> Dict[str, Type[RoutePlugin]]:
+        """
+        Get all registered route plugins.
+        
+        Returns a dictionary mapping service names to route plugin classes
+        for all registered plugins.
+        
+        Returns:
+            Dict[str, Type[RoutePlugin]]: Dictionary of all registered route plugins
+        """
+        return get_all_route_plugin_classes()
+    
+    def create_route_plugin(self, service_name: str, **kwargs) -> Optional[RoutePlugin]:
+        """
+        Create an instance of a route plugin.
+        
+        Creates and returns an instance of the route plugin with the given
+        service name, passing any additional keyword arguments to the plugin's
+        constructor. Returns None if no plugin with the given service name is found.
+        
+        Args:
+            service_name (str): The unique service name of the plugin to instantiate
+            **kwargs: Additional keyword arguments to pass to the plugin constructor
+            
+        Returns:
+            Optional[RoutePlugin]: A plugin instance if the plugin was found,
+                                  None otherwise
+        """
+        plugin_class = get_route_plugin(service_name)
+        if plugin_class:
+            return plugin_class(**kwargs)
+        return None
+    
     def get_service_routers(self) -> Dict[str, APIRouter]:
         """
         Get all routers from plugins that implement the RoutePlugin interface.
@@ -266,14 +301,20 @@ class PluginManager:
         """
         routers = {}
         
-        # Check all authorization plugins
+        # Get all dedicated route plugins
+        for service_name, plugin_class in self.get_all_route_plugins().items():
+            plugin = plugin_class()
+            routers[service_name] = plugin.get_router()
+            logger.info(f"Found route plugin: {service_name}")
+        
+        # Check authorization plugins that also implement RoutePlugin
         for service_name, plugin_class in self.get_all_authorization_plugins().items():
-            if issubclass(plugin_class, RoutePlugin):
+            if issubclass(plugin_class, RoutePlugin) and service_name not in routers:
                 plugin = plugin_class()
                 routers[service_name] = plugin.get_router()
                 logger.info(f"Found route plugin in authorization plugin: {service_name}")
         
-        # Check all resource plugins
+        # Check resource plugins that also implement RoutePlugin
         for service_name, plugin_class in self.get_all_resource_plugins().items():
             if issubclass(plugin_class, RoutePlugin) and service_name not in routers:
                 plugin = plugin_class()

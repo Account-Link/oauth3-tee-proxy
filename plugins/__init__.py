@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T', bound='PluginBase')
 AuthPlugin = TypeVar('AuthPlugin', bound='AuthorizationPlugin')
 ResourcePlugin = TypeVar('ResourcePlugin', bound='ResourcePlugin')
+RoutePlugin = TypeVar('RoutePlugin', bound='RoutePlugin')
 
 class PluginType(str, Enum):
     """
@@ -58,9 +59,11 @@ class PluginType(str, Enum):
     Types:
         AUTHORIZATION: Plugins that handle authentication with resource servers
         RESOURCE: Plugins that interact with resource server APIs
+        ROUTE: Plugins that provide HTTP endpoints
     """
     AUTHORIZATION = "authorization"
     RESOURCE = "resource"
+    ROUTE = "route"
 
 class PluginBase:
     """
@@ -265,9 +268,9 @@ class ResourcePlugin(PluginBase):
         """
         raise NotImplementedError("Subclasses must implement get_available_scopes")
 
-class RoutePlugin:
+class RoutePlugin(PluginBase):
     """
-    Mixin class for plugins that provide their own routes.
+    Base class for plugins that provide their own routes.
     
     Route plugins are responsible for:
     - Creating and configuring FastAPI APIRouter objects
@@ -280,7 +283,12 @@ class RoutePlugin:
     
     Implementations should define service-specific routes and handlers,
     following the pattern used in the application.
+    
+    Class Attributes:
+        plugin_type (PluginType): Set to ROUTE for all route plugins
     """
+    
+    plugin_type = PluginType.ROUTE
     
     def get_router(self):
         """
@@ -307,6 +315,7 @@ os.makedirs(os.path.join(os.path.dirname(__file__), "telegram"), exist_ok=True)
 # Plugin registry
 _authorization_plugins: Dict[str, Type[AuthorizationPlugin]] = {}
 _resource_plugins: Dict[str, Type[ResourcePlugin]] = {}
+_route_plugins: Dict[str, Type[RoutePlugin]] = {}
 
 def register_authorization_plugin(plugin_class: Type[AuthorizationPlugin]) -> None:
     """
@@ -432,6 +441,68 @@ def get_all_resource_plugins() -> Dict[str, Type[ResourcePlugin]]:
     """
     return _resource_plugins.copy()
 
+def get_all_route_plugins() -> Dict[str, Type[RoutePlugin]]:
+    """
+    Get all registered route plugins.
+    
+    Returns a dictionary mapping service names to route plugin classes
+    for all registered plugins. The dictionary is a copy of the internal registry,
+    so modifying it will not affect the registry.
+    
+    Returns:
+        Dict[str, Type[RoutePlugin]]: Dictionary of all registered route plugins
+        
+    Example:
+        >>> route_plugins = get_all_route_plugins()
+        >>> for name, plugin_class in route_plugins.items():
+        ...     print(f"Found route plugin: {name}")
+    """
+    return _route_plugins.copy()
+
+def register_route_plugin(plugin_class: Type[RoutePlugin]) -> None:
+    """
+    Register a route plugin with the system.
+    
+    This function registers a RoutePlugin subclass in the plugin registry,
+    making it available for discovery and use by the application. Each plugin is
+    registered under its service_name, which must be unique across all route
+    plugins.
+    
+    Args:
+        plugin_class (Type[RoutePlugin]): The route plugin class to register
+        
+    Returns:
+        None
+        
+    Example:
+        >>> class MyRoutePlugin(RoutePlugin):
+        ...     service_name = "my_service"
+        ...     # Implementation...
+        >>> register_route_plugin(MyRoutePlugin)
+    """
+    _route_plugins[plugin_class.service_name] = plugin_class
+    logger.info(f"Registered route plugin: {plugin_class.service_name}")
+
+def get_route_plugin(service_name: str) -> Optional[Type[RoutePlugin]]:
+    """
+    Get a route plugin class by its service name.
+    
+    Retrieves a registered route plugin class from the registry using its
+    service name. Returns None if no plugin with the given service name is found.
+    
+    Args:
+        service_name (str): The unique service name of the plugin to retrieve
+        
+    Returns:
+        Optional[Type[RoutePlugin]]: The plugin class if found, None otherwise
+        
+    Example:
+        >>> twitter_route_plugin = get_route_plugin("twitter")
+        >>> if twitter_route_plugin:
+        ...     plugin_instance = twitter_route_plugin()
+    """
+    return _route_plugins.get(service_name)
+
 def get_all_authorization_plugin_classes() -> Dict[str, Type[AuthorizationPlugin]]:
     """
     Get all registered authorization plugin classes (for backward compatibility).
@@ -455,3 +526,15 @@ def get_all_resource_plugin_classes() -> Dict[str, Type[ResourcePlugin]]:
         Dict[str, Type[ResourcePlugin]]: Dictionary of all registered resource plugins
     """
     return get_all_resource_plugins()
+
+def get_all_route_plugin_classes() -> Dict[str, Type[RoutePlugin]]:
+    """
+    Get all registered route plugin classes (for backward compatibility).
+    
+    This is an alias for get_all_route_plugins() provided for backward
+    compatibility with older code.
+    
+    Returns:
+        Dict[str, Type[RoutePlugin]]: Dictionary of all registered route plugins
+    """
+    return get_all_route_plugins()
