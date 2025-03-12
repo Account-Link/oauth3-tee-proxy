@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Twitter Accounts - OAuth3 TEE Proxy{% endblock %}
+
+{% block page_title %}Twitter Accounts{% endblock %}
+
+{% block content %}
+<div class="accounts-container">
+    <div class="section-header">
+        <h2>Your Twitter Accounts</h2>
+        <a href="/twitter/auth/admin" class="button secondary-button">Add New Twitter Account</a>
+    </div>
+
+    {% if twitter_accounts and twitter_accounts|length > 0 %}
+        {% for account in twitter_accounts %}
+            <div class="account-card">
+                <div class="account-info">
+                    <div class="account-header">
+                        {% if account.profile_image_url %}
+                            <div class="account-avatar">
+                                <img src="{{ account.profile_image_url }}" alt="Twitter avatar" />
+                            </div>
+                        {% else %}
+                            <div class="account-avatar default-avatar">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
+                                </svg>
+                            </div>
+                        {% endif %}
+                        <div class="account-details">
+                            <h3 class="account-name">{% if account.display_name %}{{ account.display_name }}{% else %}Twitter User{% endif %}</h3>
+                            <div class="account-username">@{% if account.username %}{{ account.username }}{% else %}unknown{% endif %}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="account-metadata">
+                        <div class="metadata-item">
+                            <span class="label">Account ID:</span>
+                            <span class="value">{{ account.twitter_id }}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Added on:</span>
+                            <span class="value">{{ account.created_at.strftime('%Y-%m-%d') }}</span>
+                        </div>
+                        {% if account.can_login %}
+                            <div class="metadata-item">
+                                <span class="label">Login enabled:</span>
+                                <span class="value yes">Yes</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="auth-methods">
+                    <h4>Authentication Methods</h4>
+                    
+                    <!-- Cookie Authentication -->
+                    <div class="auth-method {% if account_cookie_status[account.twitter_id] %}active{% else %}inactive{% endif %}">
+                        <div class="auth-method-header">
+                            <h5>Cookie Authentication</h5>
+                            <span class="status-badge {% if account_cookie_status[account.twitter_id] %}active{% else %}inactive{% endif %}">
+                                {% if account_cookie_status[account.twitter_id] %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        
+                        {% if account_cookie_status[account.twitter_id] %}
+                            <div class="auth-details">
+                                <div class="metadata-item">
+                                    <span class="label">Cookie status:</span>
+                                    <span class="value">Valid and active</span>
+                                </div>
+                            </div>
+                            <div class="auth-actions">
+                                <button class="danger-button" onclick="deleteAuthMethod('{{ account.twitter_id }}', 'cookie')">
+                                    Remove Cookie Auth
+                                </button>
+                            </div>
+                        {% else %}
+                            <div class="auth-actions">
+                                <a href="/twitter/auth/admin" class="button">Add Cookie Auth</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- OAuth Authentication -->
+                    <div class="auth-method {% if account_oauth_status[account.twitter_id] %}active{% else %}inactive{% endif %}">
+                        <div class="auth-method-header">
+                            <h5>OAuth Authentication</h5>
+                            <span class="status-badge {% if account_oauth_status[account.twitter_id] %}active{% else %}inactive{% endif %}">
+                                {% if account_oauth_status[account.twitter_id] %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        
+                        {% if account_oauth_status[account.twitter_id] %}
+                            <div class="oauth-details">
+                                <div class="metadata-item">
+                                    <span class="label">Last updated:</span>
+                                    <span class="value">{{ account_oauth_status[account.twitter_id].updated_at.strftime('%Y-%m-%d') }}</span>
+                                </div>
+                            </div>
+                            <div class="auth-actions">
+                                <button class="danger-button" onclick="deleteAuthMethod('{{ account.twitter_id }}', 'oauth')">
+                                    Remove OAuth Auth
+                                </button>
+                            </div>
+                        {% else %}
+                            <div class="auth-actions">
+                                <a href="/twitter/oauth/link?next=/twitter/accounts/manage" class="button">Add OAuth Auth</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="account-footer">
+                    <button class="danger-button" onclick="deleteAccount('{{ account.twitter_id }}')">
+                        Delete Account
+                    </button>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-accounts">
+            <p>You don't have any Twitter accounts linked yet.</p>
+            <a href="/twitter/auth/admin" class="button">Add Twitter Account</a>
+        </div>
+    {% endif %}
+    
+    <div class="back-link">
+        <a href="/dashboard" class="button secondary-button">Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+    .accounts-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .account-card {
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background-color: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    
+    .account-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .account-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-right: 15px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #1DA1F2;
+        color: white;
+    }
+    
+    .account-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .account-details {
+        flex: 1;
+    }
+    
+    .account-name {
+        margin: 0 0 5px 0;
+        font-size: 18px;
+    }
+    
+    .account-username {
+        color: #586069;
+        font-size: 14px;
+    }
+    
+    .account-metadata {
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: #f6f8fa;
+        border-radius: 4px;
+    }
+    
+    .metadata-item {
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+    
+    .label {
+        font-weight: 600;
+        margin-right: 5px;
+    }
+    
+    .value {
+        color: #586069;
+    }
+    
+    .value.yes {
+        color: #28a745;
+    }
+    
+    .auth-methods {
+        margin-bottom: 20px;
+    }
+    
+    .auth-method {
+        border: 1px solid #e1e4e8;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .auth-method.active {
+        border-color: #28a745;
+        background-color: #f0fff4;
+    }
+    
+    .auth-method.inactive {
+        border-color: #d1d5da;
+        background-color: #f6f8fa;
+    }
+    
+    .auth-method-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .auth-method-header h5 {
+        margin: 0;
+        font-size: 16px;
+    }
+    
+    .status-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-badge.active {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-badge.inactive {
+        background-color: #d1d5da;
+        color: #24292e;
+    }
+    
+    .auth-actions {
+        margin-top: 10px;
+    }
+    
+    .oauth-details {
+        margin-bottom: 10px;
+        font-size: 13px;
+    }
+    
+    .account-footer {
+        margin-top: 20px;
+        border-top: 1px solid #e1e4e8;
+        padding-top: 20px;
+        text-align: right;
+    }
+    
+    .danger-button {
+        background-color: #fafbfc;
+        color: #d73a49;
+        border: 1px solid rgba(27, 31, 35, 0.15);
+        padding: 5px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 6px;
+    }
+    
+    .danger-button:hover {
+        background-color: #f6f8fa;
+        border-color: rgba(27, 31, 35, 0.15);
+        box-shadow: 0 1px 0 rgba(27, 31, 35, 0.04);
+    }
+    
+    .no-accounts {
+        text-align: center;
+        padding: 40px 0;
+    }
+    
+    .back-link {
+        margin-top: 30px;
+        text-align: center;
+    }
+</style>
+
+<script>
+    async function deleteAuthMethod(twitterId, authType) {
+        if (!confirm(`Are you sure you want to remove the ${authType} authentication for this Twitter account?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/twitter/accounts/${twitterId}/${authType}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                // Reload the page to reflect the changes
+                window.location.reload();
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.detail || 'Failed to remove authentication method'}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while trying to remove the authentication method.');
+        }
+    }
+    
+    async function deleteAccount(twitterId) {
+        if (!confirm('Are you sure you want to delete this Twitter account? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/twitter/accounts/${twitterId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                // Reload the page to reflect the changes
+                window.location.reload();
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.detail || 'Failed to delete account'}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while trying to delete the account.');
+        }
+    }
+</script>
+{% endblock %}

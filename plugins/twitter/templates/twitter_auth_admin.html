@@ -58,14 +58,14 @@
                 <div class="step">
                     <div class="step-number">5</div>
                     <div class="step-content">
-                        Find the cookie named <code>auth_token</code> in the list and copy its value
+                        Find the cookie named <code>auth_token</code> in the list and copy its value (just the value, not the name)
                     </div>
                 </div>
                 
                 <div class="step">
                     <div class="step-number">6</div>
                     <div class="step-content">
-                        <strong>TL;DR:</strong> Enter the auth_token value below.
+                        <strong>TL;DR:</strong> Paste the <code>auth_token</code> value below. You can paste just the value, or include the prefix <code>auth_token=</code>.
                     </div>
                 </div>
             </div>
@@ -81,11 +81,14 @@
                 name="twitter_cookie",
                 id="twitter_cookie",
                 label="Twitter auth_token Cookie:",
-                placeholder="Paste your auth_token value here (with or without the 'auth_token=' prefix)",
+                placeholder="Paste your auth_token value here (must be the actual token value)",
                 required=true,
                 rows=6
             ) }}
-            <div class="note">Examples: <code>a1b2c3d4...</code> or <code>auth_token=a1b2c3d4...</code> (the value will be much longer)</div>
+            <div class="note">
+                <p><strong>Required format:</strong> The auth_token cookie value - a string of alphanumeric characters</p>
+                <p><strong>⚠️ Important:</strong> Make sure you're copying just the <code>auth_token</code> cookie's value, not other cookies. This is a long text string that may vary in length.</p>
+            </div>
             
             <div id="cookieSubmitStatus" class="status" style="display: none;"></div>
             
@@ -290,18 +293,24 @@
     
     async function submitCookie() {
         // Get the cookie value
-        const cookieValue = document.getElementById('twitter_cookie').value.trim();
+        let cookieValue = document.getElementById('twitter_cookie').value.trim();
         
         if (!cookieValue) {
             showCookieStatus('Please enter a Twitter cookie.', 'error');
             return;
         }
         
+        // Do not mess with the cookie format - just submit what the user entered directly
+        
+        // Show debug information - first 10 chars only for security
+        const previewChars = cookieValue.substring(0, 10);
+        console.log(`Submitting cookie value starting with: ${previewChars}..., length: ${cookieValue.length}`);
+        
         // Show loading state
         showCookieStatus('Submitting cookie...', 'status');
         
         try {
-            // Submit via API
+            // Submit via API with the raw value
             const response = await fetch('/twitter/auth/cookies', {
                 method: 'POST',
                 headers: {
