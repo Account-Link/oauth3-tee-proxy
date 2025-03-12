@@ -31,13 +31,26 @@ async def submit_cookie_page(request: Request):
     
     This route now uses the Twitter plugin's UI provider to render the template.
     """
-    # Get the Twitter UI provider and render the submit cookie page
-    twitter_ui = plugin_manager.get_plugin_ui("twitter")
-    if twitter_ui and hasattr(twitter_ui, "render_submit_cookie_page"):
-        return twitter_ui.render_submit_cookie_page(request)
+    # Check if user is authenticated
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
     
-    # Fallback to the old template if the UI provider is not available
-    return templates.TemplateResponse("submit_cookie.html", {"request": request})
+    try:
+        # Get the Twitter UI provider and render the submit cookie page
+        twitter_ui = plugin_manager.get_plugin_ui("twitter")
+        if twitter_ui and hasattr(twitter_ui, "render_submit_cookie_page"):
+            return twitter_ui.render_submit_cookie_page(request)
+        
+        # Fallback to the old template if the UI provider is not available
+        return templates.TemplateResponse("submit_cookie.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error rendering submit_cookie page: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "error_message": "An error occurred while loading the Twitter cookie form. Please try again later.",
+            "back_url": "/dashboard"
+        })
 
 @router.get("/add-telegram", response_class=HTMLResponse)
 async def add_telegram_page(request: Request):
@@ -188,48 +201,11 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         })
 
 @router.get("/graphql-playground", response_class=HTMLResponse)
-async def graphql_playground(request: Request, db: Session = Depends(get_db)):
+async def graphql_playground_redirect(request: Request):
     """
-    Twitter GraphQL API playground for testing queries.
+    Redirects to the Twitter GraphQL playground provided by the Twitter GraphQL plugin.
     
-    This page provides a user interface for testing Twitter GraphQL queries through
-    the OAuth3 TEE Proxy. It allows selecting from predefined operations or entering
-    custom query IDs, and supports both GET and POST methods.
-    
-    This route now uses the Twitter plugin's UI provider to render the template.
+    This route exists for backwards compatibility and redirects users to the new
+    GraphQL playground route provided by the Twitter GraphQL plugin.
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        request.session.clear()
-        return RedirectResponse(url="/login")
-    
-    # Get active OAuth2 tokens with appropriate scopes
-    oauth2_tokens = db.query(OAuth2Token).filter(
-        OAuth2Token.user_id == user_id,
-        OAuth2Token.is_active == True,
-        OAuth2Token.expires_at > datetime.utcnow(),
-        OAuth2Token.scopes.contains("twitter.graphql")
-    ).all()
-    
-    # Import the Twitter GraphQL operations - use a lazy import to avoid circular dependencies
-    from plugins.twitter.policy import TWITTER_GRAPHQL_OPERATIONS
-    
-    # Get the Twitter UI provider and render the GraphQL playground
-    twitter_ui = plugin_manager.get_plugin_ui("twitter")
-    if twitter_ui and hasattr(twitter_ui, "render_graphql_playground"):
-        return twitter_ui.render_graphql_playground(request, oauth2_tokens, TWITTER_GRAPHQL_OPERATIONS)
-    
-    # Fallback to the old template if the UI provider is not available
-    return templates.TemplateResponse(
-        "graphql_playground.html",
-        {
-            "request": request,
-            "user": user,
-            "oauth2_tokens": oauth2_tokens,
-            "operations": TWITTER_GRAPHQL_OPERATIONS
-        }
-    )
+    return RedirectResponse(url="/twitter/graphql/playground", status_code=301)

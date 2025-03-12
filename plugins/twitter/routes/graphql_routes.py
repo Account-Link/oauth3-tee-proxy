@@ -11,6 +11,7 @@ The TwitterGraphQLRoutes class implements the RoutePlugin interface and provides
 routes for:
 - Executing GraphQL queries by query ID
 - Supporting both GET and POST methods for GraphQL queries
+- Providing a GraphQL playground UI for testing queries
 
 The routes act as a passthrough to Twitter's GraphQL API, allowing new GraphQL
 operations to be supported without requiring code changes to the plugin.
@@ -18,18 +19,27 @@ operations to be supported without requiring code changes to the plugin.
 
 import logging
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Security, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Security, Body, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from database import get_db
 from plugins.twitter.models import TwitterAccount
-from models import OAuth2Token
+from models import OAuth2Token, User
+from plugins import RoutePlugin
+from plugin_manager import plugin_manager
+
+# Import UI provider
+from .graphql_ui import twitter_graphql_ui
+
+# Register UI provider with plugin manager
+plugin_manager._plugin_ui_providers["twitter/graphql"] = twitter_graphql_ui
 
 # Lazily import verify_token_and_scopes to avoid circular imports
 def get_verify_token_function():
     from oauth2_routes import verify_token_and_scopes
     return verify_token_and_scopes
-from plugins import RoutePlugin
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +71,45 @@ class TwitterGraphQLRoutes(RoutePlugin):
             APIRouter: FastAPI router with Twitter GraphQL routes
         """
         router = APIRouter(tags=["twitter", "graphql"])
+        
+        # Add GraphQL Playground route
+        @router.get("/playground", response_class=HTMLResponse)
+        async def graphql_playground(request: Request, db: Session = Depends(get_db)):
+            """
+            Interactive playground for testing Twitter GraphQL queries.
+            
+            This page provides a user interface for testing Twitter GraphQL queries through
+            the OAuth3 TEE Proxy. It allows selecting from predefined operations or entering
+            custom query IDs, and supports both GET and POST methods.
+            """
+            user_id = request.session.get("user_id")
+            if not user_id:
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(url="/login")
+            
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                request.session.clear()
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(url="/login")
+            
+            # Get active OAuth2 tokens with appropriate scopes
+            oauth2_tokens = db.query(OAuth2Token).filter(
+                OAuth2Token.user_id == user_id,
+                OAuth2Token.is_active == True,
+                OAuth2Token.expires_at > datetime.utcnow(),
+                OAuth2Token.scopes.contains("twitter.graphql")
+            ).all()
+            
+            # Import the Twitter GraphQL operations
+            from plugins.twitter.policy import TWITTER_GRAPHQL_OPERATIONS
+            
+            # Use the UI provider to render the playground
+            return twitter_graphql_ui.render_graphql_playground(
+                request, 
+                oauth2_tokens, 
+                TWITTER_GRAPHQL_OPERATIONS
+            )
         
         @router.get("/{query_id}")
         async def execute_graphql_get(
