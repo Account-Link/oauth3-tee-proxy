@@ -37,7 +37,7 @@ class TestTwitterCookieRoutes:
             
             # Make the request - allow_redirects=False to prevent the client from following redirects
             response = client.post(
-                "/twitter/cookie",
+                "/twitter/auth/cookies",
                 data={"twitter_cookie": "auth_token=abcdef; ct0=123456"},
                 allow_redirects=False
             )
@@ -60,7 +60,7 @@ class TestTwitterCookieRoutes:
         """Test submitting a cookie without authentication"""
         # Make the request without setting a session (unauthenticated)
         response = client.post(
-            "/twitter/cookie",
+            "/twitter/auth/cookies",
             data={"twitter_cookie": "auth_token=abcdef; ct0=123456"}
         )
         
@@ -84,7 +84,7 @@ class TestTwitterCookieRoutes:
             
             # Make the request with JSON data to trigger API path
             response = client.post(
-                "/twitter/cookie",
+                "/twitter/auth/cookies",
                 json={"cookie": "invalid-cookie"},
                 headers={"Content-Type": "application/json"},
                 allow_redirects=False
@@ -121,7 +121,7 @@ class TestTwitterCookieRoutes:
             
             # Make the request
             response = client.post(
-                "/twitter/cookie",
+                "/twitter/auth/cookies",
                 data={"twitter_cookie": "auth_token=newtoken; ct0=newct0"},
                 allow_redirects=False
             )
