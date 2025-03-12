@@ -79,6 +79,6 @@ class TestTwitterE2E:
             assert twitter_plugin_card is not None, "Twitter plugin card not found on dashboard"
             
             # Verify the Add Twitter Account link exists and points to the correct URL
-            add_account_link = twitter_plugin_card.find("a", href="/twitter/auth/ui/submit-cookie")
+            add_account_link = twitter_plugin_card.find("a", href="/twitter/auth/admin")
             assert add_account_link is not None, "Add Twitter Account link not found in Twitter plugin card"
             assert "Add Twitter Account" in add_account_link.text, "Add Twitter Account text not found in link"

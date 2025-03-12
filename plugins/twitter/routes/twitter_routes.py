@@ -70,8 +70,9 @@ class PolicyViolationError(Exception):
     """Raised when a policy violation occurs"""
     pass
 
-# Import the new route modules
-from .auth import create_auth_ui_router, create_cookie_auth_router
+# Import the route modules
+from .auth_ui import create_auth_ui_router
+from .cookie_routes import create_cookie_auth_router
 from .account_routes import create_account_router
 
 logger = logging.getLogger(__name__)
@@ -284,7 +285,7 @@ class TwitterRoutes(RoutePlugin):
         
         # Include the auth routes with appropriate prefixes
         auth_ui_router = create_auth_ui_router()
-        router.include_router(auth_ui_router, prefix="/auth/ui")
+        router.include_router(auth_ui_router, prefix="/auth/admin")
         
         cookie_auth_router = create_cookie_auth_router()
         router.include_router(cookie_auth_router, prefix="/auth/cookies")

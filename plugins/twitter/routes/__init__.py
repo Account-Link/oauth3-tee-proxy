@@ -27,9 +27,10 @@ from .graphql_routes import TwitterGraphQLRoutes
 from .v1_routes import TwitterV1Routes
 from .oauth_routes import TwitterOAuthRoutes
 
-# Import new modular route factories
+# Import modular route factories
 from .account_routes import create_account_router
-from .auth import create_auth_ui_router, create_cookie_auth_router
+from .auth_ui import create_auth_ui_router
+from .cookie_routes import create_cookie_auth_router
 
 # This makes it easier to import the routes in one go
 __all__ = [

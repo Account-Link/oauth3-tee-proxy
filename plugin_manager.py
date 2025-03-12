@@ -417,7 +417,7 @@ class PluginManager:
                     # Add plugin-specific URLs
                     if service_name == "twitter":
                         info["urls"] = {
-                            "Add Account": "/twitter/auth/ui/submit-cookie"
+                            "Add Account": "/twitter/auth/admin"
                         }
                     elif service_name == "twitter_graphql":
                         info["urls"] = {

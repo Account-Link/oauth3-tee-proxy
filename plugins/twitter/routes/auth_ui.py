@@ -26,7 +26,7 @@ def create_auth_ui_router() -> APIRouter:
     """
     router = APIRouter(tags=["twitter:auth:ui"])
     
-    @router.get("/submit-cookie", response_class=HTMLResponse)
+    @router.get("", response_class=HTMLResponse)
     async def submit_cookie_page(request: Request):
         """
         Page for submitting Twitter cookie authentication.
