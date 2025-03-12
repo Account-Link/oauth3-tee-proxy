@@ -200,14 +200,14 @@ def create_cookie_auth_router() -> APIRouter:
                 
                 # Update existing account with fresh info
                 # Just log the info and continue
-                logger.info(f"Cookie value: '{twitter_cookie}'")
-                logger.info(f"Cookie format: Length={len(twitter_cookie) if twitter_cookie else 0}, Type={type(twitter_cookie)}")
-                if twitter_cookie:
-                    logger.info(f"Cookie starts with: {twitter_cookie[:20]}...")
-                    logger.info(f"Contains 'auth_token=': {'auth_token=' in twitter_cookie}")
+                logger.info(f"Cookie value: '{cookie_string}'")
+                logger.info(f"Cookie format: Length={len(cookie_string) if cookie_string else 0}, Type={type(cookie_string)}")
+                if cookie_string:
+                    logger.info(f"Cookie starts with: {cookie_string[:20]}...")
+                    logger.info(f"Contains 'auth_token=': {'auth_token=' in cookie_string}")
                 
                 # Basic validation - only check if it's completely empty
-                if not twitter_cookie:
+                if not cookie_string:
                     error_message = "Cookie cannot be empty"
                     logger.error(error_message)
                     if is_api_call:
@@ -223,12 +223,12 @@ def create_cookie_auth_router() -> APIRouter:
                 db_conn = sqlite3.connect('oauth3.db')
                 cursor = db_conn.cursor()
                 cursor.execute('UPDATE twitter_accounts SET twitter_cookie = ? WHERE twitter_id = ?', 
-                               (twitter_cookie, existing_account.twitter_id))
+                               (cookie_string, existing_account.twitter_id))
                 db_conn.commit()
                 db_conn.close()
                 
                 # Also update via SQLAlchemy
-                existing_account.twitter_cookie = twitter_cookie
+                existing_account.twitter_cookie = cookie_string
                 existing_account.updated_at = datetime.utcnow()
                 existing_account.user_id = request.session.get("user_id")
                 
@@ -241,14 +241,14 @@ def create_cookie_auth_router() -> APIRouter:
                     existing_account.profile_image_url = profile_image_url
             else:
                 # Just log the info and continue
-                logger.info(f"New account - Cookie value: '{twitter_cookie}'")
-                logger.info(f"New account - Cookie format: Length={len(twitter_cookie) if twitter_cookie else 0}, Type={type(twitter_cookie)}")
-                if twitter_cookie:
-                    logger.info(f"New account - Cookie starts with: {twitter_cookie[:20]}...")
-                    logger.info(f"New account - Contains 'auth_token=': {'auth_token=' in twitter_cookie}")
+                logger.info(f"New account - Cookie value: '{cookie_string}'")
+                logger.info(f"New account - Cookie format: Length={len(cookie_string) if cookie_string else 0}, Type={type(cookie_string)}")
+                if cookie_string:
+                    logger.info(f"New account - Cookie starts with: {cookie_string[:20]}...")
+                    logger.info(f"New account - Contains 'auth_token=': {'auth_token=' in cookie_string}")
                 
                 # Basic validation - only check if it's completely empty
-                if not twitter_cookie:
+                if not cookie_string:
                     error_message = "Cookie cannot be empty"
                     logger.error(error_message)
                     if is_api_call:
@@ -262,7 +262,7 @@ def create_cookie_auth_router() -> APIRouter:
                 # Create new account with all available info
                 account = TwitterAccount(
                     twitter_id=twitter_id,
-                    twitter_cookie=twitter_cookie,
+                    twitter_cookie=cookie_string,
                     user_id=request.session.get("user_id"),
                     username=username,
                     display_name=display_name,
@@ -276,7 +276,7 @@ def create_cookie_auth_router() -> APIRouter:
                 db_conn = sqlite3.connect('oauth3.db')
                 cursor = db_conn.cursor()
                 cursor.execute('UPDATE twitter_accounts SET twitter_cookie = ? WHERE twitter_id = ?', 
-                               (twitter_cookie, twitter_id))
+                               (cookie_string, twitter_id))
                 db_conn.commit()
                 db_conn.close()
             
