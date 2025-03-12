@@ -35,13 +35,14 @@ async def submit_cookie_page_redirect(request: Request):
     return RedirectResponse(url="/twitter/submit-cookie", status_code=301)
 
 @router.get("/add-telegram", response_class=HTMLResponse)
-async def add_telegram_page(request: Request):
-    """Page for adding a Telegram account."""
-    # Check if user is authenticated
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    return templates.TemplateResponse("add_telegram.html", {"request": request})
+async def add_telegram_page_redirect(request: Request):
+    """
+    Redirects to the Telegram add account page.
+    
+    This route exists for backwards compatibility and redirects users to the Telegram
+    plugin's account creation page.
+    """
+    return RedirectResponse(url="/telegram/add-account", status_code=301)
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -140,7 +141,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
                         "name": "telegram",
                         "description": "Access Telegram channels and messages through OAuth3 TEE Proxy.",
                         "urls": {
-                            "Add Account": "/add-telegram"
+                            "Add Account": "/telegram/add-account"
                         }
                     }
         except Exception as e:
