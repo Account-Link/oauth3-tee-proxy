@@ -27,9 +27,10 @@ def create_auth_ui_router() -> APIRouter:
     router = APIRouter(tags=["twitter:auth:ui"])
     
     @router.get("", response_class=HTMLResponse)
-    async def submit_cookie_page(request: Request):
+    async def twitter_auth_admin_page(request: Request, db: Session = Depends(get_db)):
         """
-        Page for submitting Twitter cookie authentication.
+        Admin page for Twitter authentication options.
+        Provides both cookie and OAuth authentication methods.
         """
         # Check if user is authenticated
         user_id = request.session.get("user_id")
@@ -41,16 +42,41 @@ def create_auth_ui_router() -> APIRouter:
             
             # Get the Twitter UI provider from plugin manager
             twitter_ui = plugin_manager.get_plugin_ui("twitter")
-            if twitter_ui and hasattr(twitter_ui, "render_submit_cookie_page"):
-                return twitter_ui.render_submit_cookie_page(request)
+            if twitter_ui and hasattr(twitter_ui, "render_auth_admin_page"):
+                return twitter_ui.render_auth_admin_page(request)
             
             # Fallback to main templates
-            templates = Jinja2Templates(directory="templates")
-            return templates.TemplateResponse("submit_cookie.html", {"request": request})
+            template_dir = "plugins/twitter/templates"
+            templates = Jinja2Templates(directory=template_dir)
+            # Add the base templates directory
+            templates.env.loader.searchpath.append("templates")
+            
+            # Check for existing Twitter accounts
+            from plugins.twitter.models import TwitterAccount, TwitterOAuthCredential
+            twitter_accounts = db.query(TwitterAccount).filter(
+                TwitterAccount.user_id == user_id
+            ).all()
+            
+            # Get OAuth credentials for existing accounts
+            account_oauth_status = {}
+            for account in twitter_accounts:
+                oauth_cred = db.query(TwitterOAuthCredential).filter(
+                    TwitterOAuthCredential.twitter_account_id == account.twitter_id
+                ).first()
+                account_oauth_status[account.twitter_id] = oauth_cred is not None
+            
+            return templates.TemplateResponse(
+                "twitter_auth_admin.html", 
+                {
+                    "request": request,
+                    "twitter_accounts": twitter_accounts,
+                    "account_oauth_status": account_oauth_status
+                }
+            )
         except Exception as e:
-            logger.error(f"Error rendering submit_cookie page: {e}")
+            logger.error(f"Error rendering Twitter auth admin page: {e}", exc_info=True)
             return RedirectResponse(
-                url=f"/error?message=Error loading Twitter cookie form&back_url=/dashboard", 
+                url=f"/error?message=Error loading Twitter authentication options&back_url=/dashboard", 
                 status_code=303
             )
     

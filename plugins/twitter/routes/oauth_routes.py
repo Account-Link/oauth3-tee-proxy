@@ -194,6 +194,12 @@ class TwitterOAuthRoutes(RoutePlugin):
                             )
                             db.add(oauth_cred)
                         
+                        # Make sure we update profile information if available
+                        if "screen_name" in credentials and credentials["screen_name"]:
+                            twitter_account.username = credentials["screen_name"]
+                        if "name" in credentials and credentials["name"]:
+                            twitter_account.display_name = credentials["name"]
+                        
                         db.commit()
                     elif auth_flow == "link":
                         # Linking to existing user
@@ -204,8 +210,17 @@ class TwitterOAuthRoutes(RoutePlugin):
                                 detail="Not authenticated"
                             )
                         
+                        # Check if this Twitter account is already linked to a different user
+                        if twitter_account.user_id and twitter_account.user_id != user_id:
+                            # This is a potential account takeover attempt
+                            logger.warning(f"Attempt to link Twitter account {twitter_id} to user {user_id} when it's already linked to {twitter_account.user_id}")
+                            raise HTTPException(
+                                status_code=403, 
+                                detail="This Twitter account is already linked to another user"
+                            )
+                        
                         # Update Twitter account user_id if not already set
-                        if twitter_account.user_id != user_id:
+                        if not twitter_account.user_id:
                             twitter_account.user_id = user_id
                         
                         # Store or update OAuth credentials
@@ -224,6 +239,12 @@ class TwitterOAuthRoutes(RoutePlugin):
                                 oauth_token_secret=credentials["oauth_token_secret"]
                             )
                             db.add(oauth_cred)
+                        
+                        # Make sure we update profile information if available
+                        if "screen_name" in credentials and credentials["screen_name"]:
+                            twitter_account.username = credentials["screen_name"]
+                        if "name" in credentials and credentials["name"]:
+                            twitter_account.display_name = credentials["name"]
                         
                         db.commit()
                 # Handle new account

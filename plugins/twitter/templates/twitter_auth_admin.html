@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Twitter Authentication - OAuth3 TEE Proxy{% endblock %}
+
+{% block page_title %}Twitter Authentication{% endblock %}
+
+{% block content %}
+<div class="auth-methods-container">
+    <div class="auth-method-tabs">
+        <button class="tab-button active" onclick="switchTab('cookie-tab')">Cookie Authentication</button>
+        <button class="tab-button" onclick="switchTab('oauth-tab')">OAuth Authentication</button>
+    </div>
+
+    <div id="cookie-tab" class="auth-method-content active">
+        <div class="instructions">
+            <h2>Add Twitter Account using Cookie</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        Log in to <a href="https://twitter.com" target="_blank">Twitter</a> in your browser
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        Open your browser's Developer Tools:
+                        <ul>
+                            <li>Chrome/Edge: Press F12 or right-click anywhere and select "Inspect"</li>
+                            <li>Firefox: Press F12 or right-click and select "Inspect Element"</li>
+                            <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        Navigate to the Storage/Application section:
+                        <ul>
+                            <li>Chrome/Edge: Click on the "Application" tab</li>
+                            <li>Firefox: Click on the "Storage" tab</li>
+                            <li>Safari: Click on the "Storage" tab</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        Find and expand the "Cookies" section, then click on "https://twitter.com"
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        Find the cookie named <code>auth_token</code> in the list and copy its value
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <strong>TL;DR:</strong> Enter the auth_token value below.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="note">
+                <p class="important">Security note:</p>
+                <p>Your Twitter cookie is sensitive information. This proxy will store this cookie in a secure environment to access Twitter on your behalf. The cookie is only used to make authorized API calls to Twitter.</p>
+            </div>
+        </div>
+
+        <div id="cookie-form" class="auth-form">
+            {{ ui.textarea(
+                name="twitter_cookie",
+                id="twitter_cookie",
+                label="Twitter auth_token Cookie:",
+                placeholder="Paste your auth_token value here (with or without the 'auth_token=' prefix)",
+                required=true,
+                rows=6
+            ) }}
+            <div class="note">Examples: <code>a1b2c3d4...</code> or <code>auth_token=a1b2c3d4...</code> (the value will be much longer)</div>
+            
+            <div id="cookieSubmitStatus" class="status" style="display: none;"></div>
+            
+            <div class="button-group mt-3">
+                <button onclick="submitCookie()" class="button" type="button">Submit Cookie</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="oauth-tab" class="auth-method-content">
+        <div class="instructions">
+            <h2>Add Twitter Account using OAuth</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        Click the "Connect with Twitter" button below
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        You will be redirected to Twitter's authorization page
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        Log in to your Twitter account (if not already logged in)
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        Authorize the OAuth3 TEE Proxy application to access your Twitter account
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        After authorization, you will be redirected back to the dashboard with your Twitter account linked
+                    </div>
+                </div>
+            </div>
+            
+            <div class="note">
+                <p class="important">Authorization Info:</p>
+                <p>OAuth is the recommended method for linking your Twitter account. When you authorize the application, you grant it permission to make API calls on your behalf. You can revoke this access at any time from your Twitter account settings.</p>
+            </div>
+        </div>
+
+        <div id="oauth-form" class="auth-form">
+            <div id="oauthSubmitStatus" class="status" style="display: none;"></div>
+            
+            <div class="button-group mt-3">
+                <a href="/twitter/oauth/link?next=/dashboard" class="button twitter-oauth-button">
+                    <span class="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
+                        </svg>
+                    </span>
+                    Connect with Twitter
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="back-link">
+        <a href="/dashboard" class="button secondary-button">Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+    .auth-methods-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .auth-method-tabs {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 20px;
+    }
+    
+    .tab-button {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        color: #666;
+        border-bottom: 3px solid transparent;
+    }
+    
+    .tab-button.active {
+        border-bottom: 3px solid #1DA1F2;
+        color: #1DA1F2;
+        font-weight: 600;
+    }
+    
+    .auth-method-content {
+        display: none;
+    }
+    
+    .auth-method-content.active {
+        display: block;
+    }
+    
+    .auth-form {
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        margin-top: 20px;
+    }
+    
+    .back-link {
+        margin-top: 30px;
+        text-align: center;
+    }
+    
+    .twitter-oauth-button {
+        background-color: #1DA1F2;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        font-weight: 600;
+    }
+    
+    .twitter-oauth-button .icon {
+        margin-right: 10px;
+    }
+    
+    .twitter-oauth-button:hover {
+        background-color: #0c85d0;
+    }
+    
+    .example {
+        display: inline-block;
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        margin-left: 5px;
+    }
+    
+    .secondary-button {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status.status {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+</style>
+
+<script>
+    function switchTab(tabId) {
+        // Hide all content sections
+        const contents = document.querySelectorAll('.auth-method-content');
+        contents.forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Deactivate all tabs
+        const tabs = document.querySelectorAll('.tab-button');
+        tabs.forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Activate the selected tab
+        document.getElementById(tabId).classList.add('active');
+        
+        // Activate the button that was clicked
+        const activeButton = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+    }
+    
+    async function submitCookie() {
+        // Get the cookie value
+        const cookieValue = document.getElementById('twitter_cookie').value.trim();
+        
+        if (!cookieValue) {
+            showCookieStatus('Please enter a Twitter cookie.', 'error');
+            return;
+        }
+        
+        // Show loading state
+        showCookieStatus('Submitting cookie...', 'status');
+        
+        try {
+            // Submit via API
+            const response = await fetch('/twitter/auth/cookies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cookie: cookieValue
+                })
+            });
+            
+            // Parse the response
+            if (response.ok) {
+                try {
+                    const data = await response.json();
+                    console.log('Server response:', data);
+                    
+                    if (data.account && data.account.username) {
+                        showCookieStatus(`Successfully linked Twitter account: @${data.account.username}`, 'success');
+                    } else {
+                        showCookieStatus('Successfully linked Twitter account!', 'success');
+                    }
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } catch (e) {
+                    console.error('Error parsing JSON response:', e);
+                    showCookieStatus('Successfully linked Twitter account!', 'success');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                }
+            } else {
+                // Handle error response
+                let errorMsg = 'Failed to submit cookie.';
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorMsg;
+                } catch (e) {
+                    // If we can't parse the JSON, use the status text
+                    errorMsg = response.statusText || errorMsg;
+                }
+                showCookieStatus(errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('Error submitting cookie:', error);
+            showCookieStatus('Network error. Please try again.', 'error');
+        }
+    }
+    
+    function showCookieStatus(message, type) {
+        const statusElement = document.getElementById('cookieSubmitStatus');
+        statusElement.textContent = message;
+        statusElement.className = 'status';
+        statusElement.classList.add(type);
+        statusElement.style.display = 'block';
+    }
+</script>
+{% endblock %}

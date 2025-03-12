@@ -82,3 +82,14 @@ class TestTwitterE2E:
             add_account_link = twitter_plugin_card.find("a", href="/twitter/auth/admin")
             assert add_account_link is not None, "Add Twitter Account link not found in Twitter plugin card"
             assert "Add Twitter Account" in add_account_link.text, "Add Twitter Account text not found in link"
+            
+            # Optional: Test that the authentication admin page loads correctly
+            admin_response = client.get("/twitter/auth/admin")
+            assert admin_response.status_code == 200, "Failed to load Twitter auth admin page"
+            admin_soup = BeautifulSoup(admin_response.content, "html.parser")
+            
+            # Verify the page has tabs for both cookie and OAuth authentication
+            cookie_tab = admin_soup.find(string=lambda text: text and "Cookie Authentication" in text)
+            oauth_tab = admin_soup.find(string=lambda text: text and "OAuth Authentication" in text)
+            assert cookie_tab is not None, "Cookie authentication tab not found on admin page"
+            assert oauth_tab is not None, "OAuth authentication tab not found on admin page"

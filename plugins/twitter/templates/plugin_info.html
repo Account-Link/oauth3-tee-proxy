@@ -11,7 +11,7 @@
 </div>
 {% endmacro %}
 
-{% macro account_management(twitter_accounts) %}
+{% macro account_management(twitter_accounts, account_oauth_status={}) %}
 {% if twitter_accounts and twitter_accounts|length > 0 %}
     <ul class="account-list plugin-account-list">
         {% for account in twitter_accounts %}
@@ -35,6 +35,16 @@
                         
                         <div class="twitter-id">ID: {{ account.twitter_id }}</div>
                         <div class="added-date">Added: {{ account.created_at.strftime('%Y-%m-%d') }}</div>
+                        
+                        <div class="auth-methods">
+                            {% if account.twitter_cookie %}
+                                <span class="auth-badge cookie-auth">Cookie Auth</span>
+                            {% endif %}
+                            
+                            {% if account_oauth_status and account_oauth_status.get(account.twitter_id, false) %}
+                                <span class="auth-badge oauth-auth">OAuth Auth</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 <div class="account-actions">
@@ -43,6 +53,32 @@
             </li>
         {% endfor %}
     </ul>
+    
+    <style>
+        .auth-methods {
+            margin-top: 5px;
+        }
+        
+        .auth-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+        
+        .cookie-auth {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .oauth-auth {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #90caf9;
+        }
+    </style>
 {% else %}
     <p>No Twitter accounts linked yet.</p>
 {% endif %}

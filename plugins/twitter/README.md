@@ -52,7 +52,7 @@ The Twitter plugin provides the following UI components for user interaction:
 
 | Component | URL | Description |
 |-----------|-----|-------------|
-| Cookie Submission | `/twitter/auth/admin` | Form for adding Twitter accounts via cookie |
+| Authentication Admin | `/twitter/auth/admin` | Authentication management with both cookie and OAuth options |
 | Dashboard Widget | N/A | Twitter accounts management widget on the dashboard |
 | GraphQL Playground | `/twitter/graphql/playground` | Interactive GraphQL explorer |
 
@@ -115,14 +115,19 @@ The Twitter plugin provides the following UI components for user interaction:
 
 ## UI Components Details
 
-### Twitter Account Management (`/twitter/auth/admin`)
+### Twitter Authentication Management (`/twitter/auth/admin`)
 
-The Twitter account management page provides a user interface for:
+The Twitter authentication management page provides a complete interface for:
 - Adding Twitter accounts via cookie authentication
-- Viewing linked Twitter accounts
-- Deleting linked Twitter accounts
+- Adding Twitter accounts via OAuth authentication
+- Viewing authentication methods for each account
 
-This page is embedded within the main dashboard and provides a form for submitting Twitter cookies for authentication.
+The page features a tabbed interface with two authentication options:
+
+1. **Cookie Authentication**: Allows users to submit Twitter cookies by following step-by-step instructions
+2. **OAuth Authentication**: Provides a simple "Connect with Twitter" button that initiates the OAuth flow
+
+Users can have both authentication methods for the same Twitter account, providing redundancy and flexibility. The Twitter accounts on the dashboard will show which authentication methods are active for each account.
 
 ### Twitter GraphQL Playground (`/twitter/graphql/playground`)
 
