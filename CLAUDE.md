@@ -1,5 +1,12 @@
 # OAUTH3-TEE-PROXY DEVELOPMENT GUIDE
 
+## WORKFLOW
+- Commit early and often - don't wait for user instructions to commit changes
+- Keep changes focused on single issues or features per commit
+- Write descriptive commit messages explaining what and why (not how)
+- Always run tests before committing if possible
+- Push changes to remote branches when ready for review
+
 ## COMMANDS
 - Run service: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
 - Docker setup: `docker-compose up --build`
