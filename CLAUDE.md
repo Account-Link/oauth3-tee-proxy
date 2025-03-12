@@ -42,7 +42,9 @@
 ## TESTING PRINCIPLES
 - NEVER add test-specific code to production codebase
 - Tests should be aware of the code, not vice versa
-- Update tests to match production behavior, not the other way around
+- If the production behavior has NOT been recently modified, assume the test is correct and fix the behavior
+- Only update tests to match production behavior when you've intentionally changed that behavior
+- Ask the user if unsure whether to change tests or production code
 - If tests require special handling, implement it in test fixtures or helpers
 - Use mocks and patch appropriately to simulate different behaviors
 - Maintain clear separation between test and production environments
