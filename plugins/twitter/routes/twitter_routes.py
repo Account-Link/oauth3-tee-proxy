@@ -94,6 +94,17 @@ class TwitterRoutes(RoutePlugin):
     
     service_name = "twitter"
     
+    def get_router(self) -> APIRouter:
+        """
+        Get the router for this plugin's routes.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            APIRouter: FastAPI router with all plugin-specific routes
+        """
+        return self.create_routes()
+    
     def create_routes(self) -> APIRouter:
         """
         Create and return an API router with Twitter routes.
