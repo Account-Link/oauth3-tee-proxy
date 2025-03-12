@@ -95,7 +95,7 @@ def create_cookie_auth_router() -> APIRouter:
                     raise HTTPException(status_code=400, detail=error_message)
                 else:
                     return RedirectResponse(
-                        url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                        url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                         status_code=303
                     )
         except Exception as e:
@@ -106,7 +106,7 @@ def create_cookie_auth_router() -> APIRouter:
                 raise HTTPException(status_code=400, detail=error_message)
             else:
                 return RedirectResponse(
-                    url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                    url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                     status_code=303
                 )
         
@@ -120,7 +120,7 @@ def create_cookie_auth_router() -> APIRouter:
                     raise HTTPException(status_code=500, detail=error)
                 else:
                     return RedirectResponse(
-                        url=f"/error?message={error}url=f"/error?message={error}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                        url=f"/error?message={error}url=f"/error?message={error}url=f"/error?message={error}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                         status_code=303
                     )
             
@@ -138,7 +138,7 @@ def create_cookie_auth_router() -> APIRouter:
                     raise HTTPException(status_code=400, detail=error_message)
                 else:
                     return RedirectResponse(
-                        url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                        url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                         status_code=303
                     )
             
@@ -152,7 +152,7 @@ def create_cookie_auth_router() -> APIRouter:
                     raise HTTPException(status_code=400, detail=error_message)
                 else:
                     return RedirectResponse(
-                        url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                        url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                         status_code=303
                     )
             
@@ -177,7 +177,7 @@ def create_cookie_auth_router() -> APIRouter:
                     raise HTTPException(status_code=400, detail=error_message)
                 else:
                     return RedirectResponse(
-                        url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                        url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                         status_code=303
                     )
             
@@ -249,7 +249,7 @@ def create_cookie_auth_router() -> APIRouter:
             else:
                 # Redirect to error page for form submissions
                 return RedirectResponse(
-                    url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                    url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                     status_code=303
                 )
         except Exception as e:
@@ -262,7 +262,7 @@ def create_cookie_auth_router() -> APIRouter:
             else:
                 # Redirect to error page for form submissions
                 return RedirectResponse(
-                    url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
+                    url=f"/error?message={error_message}url=f"/error?message={error_message}url=f"/error?message={error_message}&back_url=/twitter/submit-cookie"back_url=/twitter/auth/ui/submit-cookie"back_url=/twitter/auth/ui/submit-cookie", 
                     status_code=303
                 )
     
