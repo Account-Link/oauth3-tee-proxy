@@ -87,6 +87,33 @@ class TwitterRoutes(RoutePlugin):
         """
         router = APIRouter(tags=["twitter"])
         
+        @router.get("/submit-cookie", response_class=HTMLResponse)
+        async def submit_cookie_page(request: Request):
+            """
+            Page for submitting Twitter cookie authentication.
+            """
+            # Check if user is authenticated
+            user_id = request.session.get("user_id")
+            if not user_id:
+                return RedirectResponse(url="/login")
+            
+            try:
+                from fastapi.templating import Jinja2Templates
+                import os
+                
+                # Get templates directory
+                templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+                templates = Jinja2Templates(directory=templates_dir)
+                
+                # Render the submit cookie template
+                return templates.TemplateResponse("submit_cookie.html", {"request": request})
+            except Exception as e:
+                logger.error(f"Error rendering submit_cookie page: {e}")
+                return RedirectResponse(
+                    url=f"/error?message=Error loading Twitter cookie form&back_url=/dashboard", 
+                    status_code=303
+                )
+        
         @router.post("/cookie")
         async def submit_cookie(
             response: Response,

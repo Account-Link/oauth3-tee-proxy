@@ -410,7 +410,7 @@ class PluginManager:
                     # Add plugin-specific URLs
                     if service_name == "twitter":
                         info["urls"] = {
-                            "Add Account": "/submit-cookie"
+                            "Add Account": "/twitter/submit-cookie"
                         }
                     elif service_name == "twitter_graphql":
                         info["urls"] = {

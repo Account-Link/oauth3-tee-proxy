@@ -34,8 +34,8 @@ class TwitterUIProvider:
                 "Access Twitter's v1.1 REST API"
             ],
             "urls": {
-                "GraphQL Playground": "/graphql-playground",
-                "Add Account": "/submit-cookie",
+                "GraphQL Playground": "/twitter/graphql/playground",
+                "Add Account": "/twitter/submit-cookie",
                 "Documentation": "https://developer.twitter.com/en/docs"
             },
             "color": "#1DA1F2",

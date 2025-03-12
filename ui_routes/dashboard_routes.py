@@ -25,32 +25,14 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter(tags=["UI:Dashboard"])
 
 @router.get("/submit-cookie", response_class=HTMLResponse)
-async def submit_cookie_page(request: Request):
+async def submit_cookie_page_redirect(request: Request):
     """
-    Page for submitting Twitter cookie authentication.
+    Redirects to the Twitter submit cookie page.
     
-    This route now uses the Twitter plugin's UI provider to render the template.
+    This route exists for backwards compatibility and redirects users to the Twitter
+    plugin's cookie submission page.
     """
-    # Check if user is authenticated
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    
-    try:
-        # Get the Twitter UI provider and render the submit cookie page
-        twitter_ui = plugin_manager.get_plugin_ui("twitter")
-        if twitter_ui and hasattr(twitter_ui, "render_submit_cookie_page"):
-            return twitter_ui.render_submit_cookie_page(request)
-        
-        # Fallback to the old template if the UI provider is not available
-        return templates.TemplateResponse("submit_cookie.html", {"request": request})
-    except Exception as e:
-        logger.error(f"Error rendering submit_cookie page: {e}")
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error_message": "An error occurred while loading the Twitter cookie form. Please try again later.",
-            "back_url": "/dashboard"
-        })
+    return RedirectResponse(url="/twitter/submit-cookie", status_code=301)
 
 @router.get("/add-telegram", response_class=HTMLResponse)
 async def add_telegram_page(request: Request):
