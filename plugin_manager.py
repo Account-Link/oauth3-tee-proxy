@@ -391,36 +391,60 @@ class PluginManager:
         """
         plugin_info = {}
         
-        # Get all resource plugins
-        for service_name, plugin_class in self.get_all_resource_plugins().items():
-            info = {
-                "name": service_name,
-                "description": getattr(plugin_class, "DESCRIPTION", f"Integration with {service_name}"),
-                "type": "resource",
-                "urls": {}
-            }
+        try:
+            # Get all resource plugins
+            for service_name, plugin_class in self.get_all_resource_plugins().items():
+                try:
+                    # Create base info for the plugin
+                    info = {
+                        "name": service_name,
+                        "description": f"Integration with {service_name.title()}",
+                        "type": "resource",
+                        "urls": {}
+                    }
+                    
+                    # Try to get description from plugin class
+                    if hasattr(plugin_class, "DESCRIPTION"):
+                        info["description"] = getattr(plugin_class, "DESCRIPTION")
+                    
+                    # Add plugin-specific URLs
+                    if service_name == "twitter":
+                        info["urls"] = {
+                            "GraphQL Playground": "/graphql-playground",
+                            "Add Account": "/submit-cookie"
+                        }
+                    elif service_name == "telegram":
+                        info["urls"] = {
+                            "Add Account": "/add-telegram"
+                        }
+                    
+                    # Check if plugin has a UI provider with get_plugin_info method
+                    ui_provider = self._plugin_ui_providers.get(service_name)
+                    if ui_provider:
+                        if hasattr(ui_provider, "get_plugin_info"):
+                            try:
+                                # Merge with UI provider info
+                                ui_info = ui_provider.get_plugin_info()
+                                if isinstance(ui_info, dict):
+                                    info.update(ui_info)
+                            except Exception as e:
+                                logger.error(f"Error getting UI info for plugin {service_name}: {e}")
+                    
+                    plugin_info[service_name] = info
+                except Exception as e:
+                    logger.error(f"Error processing plugin info for {service_name}: {e}")
+                    # Add minimal info for the plugin if we couldn't get full info
+                    plugin_info[service_name] = {
+                        "name": service_name,
+                        "description": f"Integration with {service_name.title()}",
+                        "type": "resource",
+                        "urls": {}
+                    }
             
-            # Add plugin-specific URLs
-            if service_name == "twitter":
-                info["urls"] = {
-                    "GraphQL Playground": "/graphql-playground",
-                    "Add Account": "/submit-cookie"
-                }
-            elif service_name == "telegram":
-                info["urls"] = {
-                    "Add Account": "/add-telegram"
-                }
-            
-            # Check if plugin has a UI provider with get_plugin_info method
-            ui_provider = self._plugin_ui_providers.get(service_name)
-            if ui_provider and hasattr(ui_provider, "get_plugin_info"):
-                # Merge with UI provider info
-                ui_info = ui_provider.get_plugin_info()
-                info.update(ui_info)
-            
-            plugin_info[service_name] = info
-        
-        return plugin_info
+            return plugin_info
+        except Exception as e:
+            logger.error(f"Error in get_plugin_info: {e}")
+            return {}
         
     def render_dashboard_components(self, request: Request, context: Dict[str, Any]) -> List[str]:
         """
@@ -438,22 +462,37 @@ class PluginManager:
             List[str]: HTML strings for dashboard components
         """
         components = []
-        for plugin_name, ui_provider in self._plugin_ui_providers.items():
-            if hasattr(ui_provider, "get_dashboard_component"):
+        
+        try:
+            # Safely iterate through UI providers
+            for plugin_name, ui_provider in self._plugin_ui_providers.items():
+                if not ui_provider or not hasattr(ui_provider, "get_dashboard_component"):
+                    continue
+                
                 try:
                     # Get plugin-specific context data
                     plugin_context = {}
                     if plugin_name == "twitter" and "twitter_accounts" in context:
-                        plugin_context = {"twitter_accounts": context["twitter_accounts"]}
+                        plugin_context = {"twitter_accounts": context.get("twitter_accounts", [])}
                     elif plugin_name == "telegram" and "telegram_accounts" in context:
-                        plugin_context = {"telegram_accounts": context["telegram_accounts"]}
+                        plugin_context = {"telegram_accounts": context.get("telegram_accounts", [])}
                     
                     # Render the component
                     component = ui_provider.get_dashboard_component(request, **plugin_context)
-                    if component:
+                    if component and isinstance(component, str):
                         components.append(component)
                 except Exception as e:
                     logger.error(f"Error rendering dashboard component for plugin {plugin_name}: {e}")
+                    # Include fallback component for the plugin if rendering fails
+                    fallback = f"""
+                    <div class="dashboard-section">
+                        <h2>{plugin_name.title()} Accounts</h2>
+                        <p>Unable to load accounts. Please try again later.</p>
+                    </div>
+                    """
+                    components.append(fallback)
+        except Exception as e:
+            logger.error(f"Error in render_dashboard_components: {e}")
         
         return components
 

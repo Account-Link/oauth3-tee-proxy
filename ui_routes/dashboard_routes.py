@@ -59,78 +59,133 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     The dashboard now uses plugin UI components to render service-specific sections,
     making it more modular and extensible.
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        request.session.clear()
-        return RedirectResponse(url="/login")
-    
-    # Get accounts from enabled plugins
-    twitter_accounts = []
-    telegram_accounts = []
-    
-    # Check if Twitter plugin is available
-    if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
-        twitter_accounts = db.query(TwitterAccount).filter(
-            TwitterAccount.user_id == user_id
-        ).all()
-    
-    # Check if Telegram plugin is available
-    if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
-        telegram_accounts = db.query(TelegramAccount).filter(
-            TelegramAccount.user_id == user_id
-        ).all()
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return RedirectResponse(url="/login")
         
-        # Get channels for each Telegram account
-        for account in telegram_accounts:
-            account.channels = db.query(TelegramChannel).filter(
-                TelegramChannel.telegram_account_id == account.id
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            request.session.clear()
+            return RedirectResponse(url="/login")
+        
+        # Create the base context
+        context = {
+            "request": request,
+            "user": user,
+            "twitter_accounts": [],
+            "telegram_accounts": [],
+            "oauth2_tokens": [],
+            "available_scopes": [],
+            "available_plugins": {},
+            "plugin_components": [],
+            "plugin_actions": []
+        }
+        
+        try:
+            # Get accounts from enabled plugins
+            # Check if Twitter plugin is available
+            if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
+                context["twitter_accounts"] = db.query(TwitterAccount).filter(
+                    TwitterAccount.user_id == user_id
+                ).all()
+            
+            # Check if Telegram plugin is available
+            if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
+                context["telegram_accounts"] = db.query(TelegramAccount).filter(
+                    TelegramAccount.user_id == user_id
+                ).all()
+                
+                # Get channels for each Telegram account
+                for account in context["telegram_accounts"]:
+                    account.channels = db.query(TelegramChannel).filter(
+                        TelegramChannel.telegram_account_id == account.id
+                    ).all()
+        except Exception as e:
+            logger.error(f"Error loading plugin accounts: {e}")
+        
+        try:
+            # Get active OAuth2 tokens
+            context["oauth2_tokens"] = db.query(OAuth2Token).filter(
+                OAuth2Token.user_id == user_id,
+                OAuth2Token.is_active == True,
+                OAuth2Token.expires_at > datetime.utcnow()
             ).all()
-    
-    # Get active OAuth2 tokens
-    oauth2_tokens = db.query(OAuth2Token).filter(
-        OAuth2Token.user_id == user_id,
-        OAuth2Token.is_active == True,
-        OAuth2Token.expires_at > datetime.utcnow()
-    ).all()
-    
-    # Get all available scopes from plugins
-    available_scopes = plugin_manager.get_all_plugin_scopes()
-    
-    # Get plugin information from plugin manager
-    available_plugins = plugin_manager.get_plugin_info()
-    
-    # Create the template context
-    context = {
-        "request": request,
-        "user": user,
-        "twitter_accounts": twitter_accounts,
-        "telegram_accounts": telegram_accounts,
-        "oauth2_tokens": oauth2_tokens,
-        "available_scopes": available_scopes.keys(),
-        "available_plugins": available_plugins
-    }
-    
-    # Render plugin-specific UI components
-    context["plugin_components"] = plugin_manager.render_dashboard_components(request, context)
-    
-    # Get plugin-specific dashboard actions (if any)
-    plugin_actions = []
-    for plugin_name, ui_provider in plugin_manager.get_all_plugin_uis().items():
-        if hasattr(ui_provider, "get_dashboard_actions"):
+        except Exception as e:
+            logger.error(f"Error loading OAuth2 tokens: {e}")
+        
+        try:
+            # Get all available scopes from plugins
+            scopes = plugin_manager.get_all_plugin_scopes()
+            context["available_scopes"] = scopes.keys()
+        except Exception as e:
+            logger.error(f"Error loading plugin scopes: {e}")
+        
+        try:
+            # Get plugin information from plugin manager
+            context["available_plugins"] = {}  # Start with empty dict
             try:
-                action = ui_provider.get_dashboard_actions(request)
-                if action:
-                    plugin_actions.append(action)
+                # Attempt to get dynamic plugin info
+                context["available_plugins"] = plugin_manager.get_plugin_info()
             except Exception as e:
-                logger.error(f"Error rendering dashboard actions for plugin {plugin_name}: {e}")
-    
-    context["plugin_actions"] = plugin_actions
-    
-    return templates.TemplateResponse("dashboard.html", context)
+                logger.error(f"Error getting plugin info: {e}")
+                # Fallback to manual plugin info
+                if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
+                    context["available_plugins"]["twitter"] = {
+                        "name": "twitter",
+                        "description": "Connect to Twitter and use its API through OAuth3 TEE Proxy.",
+                        "urls": {
+                            "GraphQL Playground": "/graphql-playground",
+                            "Add Account": "/submit-cookie"
+                        }
+                    }
+                
+                if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
+                    context["available_plugins"]["telegram"] = {
+                        "name": "telegram",
+                        "description": "Access Telegram channels and messages through OAuth3 TEE Proxy.",
+                        "urls": {
+                            "Add Account": "/add-telegram"
+                        }
+                    }
+        except Exception as e:
+            logger.error(f"Error in plugin info fallback: {e}")
+        
+        try:
+            # Render plugin-specific UI components
+            components = []
+            try:
+                components = plugin_manager.render_dashboard_components(request, context)
+            except Exception as e:
+                logger.error(f"Error rendering plugin components: {e}")
+            context["plugin_components"] = components
+        except Exception as e:
+            logger.error(f"Error setting plugin components: {e}")
+        
+        try:
+            # Get plugin-specific dashboard actions (if any)
+            plugin_actions = []
+            for plugin_name, ui_provider in plugin_manager.get_all_plugin_uis().items():
+                if hasattr(ui_provider, "get_dashboard_actions"):
+                    try:
+                        action = ui_provider.get_dashboard_actions(request)
+                        if action:
+                            plugin_actions.append(action)
+                    except Exception as e:
+                        logger.error(f"Error rendering dashboard actions for plugin {plugin_name}: {e}")
+            context["plugin_actions"] = plugin_actions
+        except Exception as e:
+            logger.error(f"Error collecting plugin actions: {e}")
+        
+        return templates.TemplateResponse("dashboard.html", context)
+        
+    except Exception as e:
+        logger.error(f"Critical error in dashboard route: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "error_message": "An error occurred while loading the dashboard. Please try again or contact support.",
+            "back_url": "/"
+        })
 
 @router.get("/graphql-playground", response_class=HTMLResponse)
 async def graphql_playground(request: Request, db: Session = Depends(get_db)):

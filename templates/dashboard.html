@@ -22,41 +22,52 @@
 {# Available Plugins Section #}
 <div class="dashboard-section">
     <h2>Available Plugins</h2>
-    <div class="plugins-grid">
-        {% for plugin_name, plugin_info in available_plugins.items() %}
-            <div class="plugin-card" data-plugin="{{ plugin_name }}">
-                <div class="plugin-header" {% if plugin_info.color %}style="background-color: {{ plugin_info.color }}; color: white;"{% endif %}>
-                    <h3 {% if plugin_info.color %}style="color: white;"{% endif %}>{{ plugin_name|title }} Plugin</h3>
-                </div>
-                <div class="plugin-body">
-                    {% if plugin_info.description %}
-                        <p>{{ plugin_info.description }}</p>
-                    {% else %}
-                        <p>Provides integration with {{ plugin_name|title }} services.</p>
-                    {% endif %}
-                    
-                    {% if plugin_info.features %}
-                        <div class="plugin-features">
-                            <h4>Features</h4>
-                            <ul>
-                                {% for feature in plugin_info.features %}
-                                    <li>{{ feature }}</li>
+    {% if available_plugins and available_plugins.items() %}
+        <div class="plugins-grid">
+            {% for plugin_name, plugin_info in available_plugins.items() %}
+                <div class="plugin-card" data-plugin="{{ plugin_name }}">
+                    <div class="plugin-header" 
+                        {% if plugin_info.color %}
+                            style="background-color: {{ plugin_info.color }}; color: white;"
+                        {% elif plugin_name == "twitter" %}
+                            style="background-color: #1DA1F2; color: white;"
+                        {% elif plugin_name == "telegram" %}
+                            style="background-color: #0088cc; color: white;"
+                        {% endif %}>
+                        <h3 style="color: white;">{{ plugin_name|title }} Plugin</h3>
+                    </div>
+                    <div class="plugin-body">
+                        {% if plugin_info.description %}
+                            <p>{{ plugin_info.description }}</p>
+                        {% else %}
+                            <p>Provides integration with {{ plugin_name|title }} services.</p>
+                        {% endif %}
+                        
+                        {% if plugin_info.features %}
+                            <div class="plugin-features">
+                                <h4>Features</h4>
+                                <ul>
+                                    {% for feature in plugin_info.features %}
+                                        <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        
+                        {% if plugin_info.urls %}
+                            <div class="plugin-actions">
+                                {% for label, url in plugin_info.urls.items() %}
+                                    <a href="{{ url }}" class="button" {% if label == "Documentation" %}target="_blank"{% endif %}>{{ label }}</a>
                                 {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
-                    
-                    {% if plugin_info.urls %}
-                        <div class="plugin-actions">
-                            {% for label, url in plugin_info.urls.items() %}
-                                <a href="{{ url }}" class="button" {% if label == "Documentation" %}target="_blank"{% endif %}>{{ label }}</a>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
-    </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="message">No plugins currently available.</div>
+    {% endif %}
 </div>
 
 {# Plugin-specific components rendered from the plugin UI providers #}
