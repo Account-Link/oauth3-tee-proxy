@@ -11,7 +11,7 @@
 </div>
 {% endmacro %}
 
-{% macro account_management(twitter_accounts=None) %}
+{% macro account_management(twitter_accounts) %}
 <div class="dashboard-section">
     <h2>Your Twitter Accounts</h2>
     {% if twitter_accounts and twitter_accounts|length > 0 %}
