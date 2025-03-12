@@ -21,10 +21,21 @@ Routes are grouped by functionality and include:
 All routes are mounted under the "/twitter" prefix in the main application.
 """
 
+# Import the main route classes
 from .twitter_routes import TwitterRoutes
 from .graphql_routes import TwitterGraphQLRoutes
 from .v1_routes import TwitterV1Routes
 from .oauth_routes import TwitterOAuthRoutes
 
+# Import new modular route factories
+from .account_routes import create_account_router
+from .auth import create_auth_ui_router, create_cookie_auth_router
+
 # This makes it easier to import the routes in one go
-__all__ = ['TwitterRoutes', 'TwitterGraphQLRoutes', 'TwitterV1Routes', 'TwitterOAuthRoutes']
+__all__ = [
+    # Main route classes
+    'TwitterRoutes', 'TwitterGraphQLRoutes', 'TwitterV1Routes', 'TwitterOAuthRoutes',
+    
+    # Modular route factories
+    'create_account_router', 'create_auth_ui_router', 'create_cookie_auth_router'
+]
