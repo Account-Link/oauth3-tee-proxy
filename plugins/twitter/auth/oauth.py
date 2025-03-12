@@ -31,7 +31,9 @@ from plugins.twitter.config import get_twitter_settings
 logger = logging.getLogger(__name__)
 
 # Get Twitter settings
+from config import get_settings as get_main_settings
 settings = get_twitter_settings()
+main_settings = get_main_settings()
 
 class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
     """
@@ -50,8 +52,14 @@ class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
     def __init__(self):
         """Initialize the Twitter OAuth authorization plugin."""
         # Validation checks for required settings
-        if not settings.TWITTER_CONSUMER_KEY or not settings.TWITTER_CONSUMER_SECRET:
+        # Check both plugin settings and main settings
+        twitter_consumer_key = settings.TWITTER_CONSUMER_KEY or main_settings.TWITTER_CONSUMER_KEY
+        twitter_consumer_secret = settings.TWITTER_CONSUMER_SECRET or main_settings.TWITTER_CONSUMER_SECRET
+        
+        if not twitter_consumer_key or not twitter_consumer_secret:
             logger.warning("Twitter OAuth plugin initialized without API keys")
+            logger.info(f"Twitter settings from plugin: {settings.dict()}")
+            logger.info(f"Twitter settings from main: CONSUMER_KEY={main_settings.TWITTER_CONSUMER_KEY}, CONSUMER_SECRET=***")
     
     def get_oauth_handler(self, callback_url: Optional[str] = None) -> tweepy.OAuth1UserHandler:
         """
@@ -63,10 +71,19 @@ class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
         Returns:
             tweepy.OAuth1UserHandler: Configured OAuth handler
         """
+        # Use values from main settings if plugin settings are empty
+        consumer_key = settings.TWITTER_CONSUMER_KEY or main_settings.TWITTER_CONSUMER_KEY
+        consumer_secret = settings.TWITTER_CONSUMER_SECRET or main_settings.TWITTER_CONSUMER_SECRET
+        oauth_callback = callback_url or settings.TWITTER_OAUTH_CALLBACK_URL or main_settings.TWITTER_OAUTH_CALLBACK_URL
+        
+        # Log the settings values for debugging
+        logger.info(f"Using Twitter Consumer Key: {consumer_key}")
+        logger.info(f"Using Twitter OAuth Callback URL: {oauth_callback}")
+        
         return tweepy.OAuth1UserHandler(
-            settings.TWITTER_CONSUMER_KEY,
-            settings.TWITTER_CONSUMER_SECRET,
-            callback=callback_url or settings.TWITTER_OAUTH_CALLBACK_URL
+            consumer_key,
+            consumer_secret,
+            callback=oauth_callback
         )
     
     async def get_authorization_url(self, callback_url: Optional[str] = None) -> Tuple[str, Any]:

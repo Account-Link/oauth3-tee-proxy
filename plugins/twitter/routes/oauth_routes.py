@@ -55,7 +55,7 @@ class TwitterOAuthRoutes(RoutePlugin):
         Returns:
             APIRouter: FastAPI router with Twitter OAuth routes
         """
-        router = APIRouter(prefix="/oauth", tags=["twitter", "oauth"])
+        router = APIRouter(tags=["twitter", "oauth"])
         
         @router.get("/login")
         async def twitter_oauth_login(
