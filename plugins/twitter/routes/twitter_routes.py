@@ -101,11 +101,16 @@ class TwitterRoutes(RoutePlugin):
                 from fastapi.templating import Jinja2Templates
                 import os
                 
-                # Get templates directory
-                templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-                templates = Jinja2Templates(directory=templates_dir)
+                # Use the main template renderer instead of the plugin's
+                from plugin_manager import plugin_manager
                 
-                # Render the submit cookie template
+                # Get the Twitter UI provider from plugin manager
+                twitter_ui = plugin_manager.get_plugin_ui("twitter")
+                if twitter_ui and hasattr(twitter_ui, "render_submit_cookie_page"):
+                    return twitter_ui.render_submit_cookie_page(request)
+                
+                # Fallback to main templates
+                templates = Jinja2Templates(directory="templates")
                 return templates.TemplateResponse("submit_cookie.html", {"request": request})
             except Exception as e:
                 logger.error(f"Error rendering submit_cookie page: {e}")

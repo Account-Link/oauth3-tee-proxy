@@ -46,12 +46,12 @@
             {% endfor %}
         </ul>
         <div class="button-group mt-3">
-            <a href="/submit-cookie" class="button">Add Twitter Account</a>
+            <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
         </div>
     {% else %}
         <p>No Twitter accounts linked yet.</p>
         <div class="button-group mt-3">
-            <a href="/submit-cookie" class="button">Add Twitter Account</a>
+            <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
         </div>
     {% endif %}
 </div>
@@ -81,6 +81,6 @@ async function deleteTwitterAccount(twitterId) {
 
 {% macro dashboard_actions() %}
 <div class="plugin-actions">
-    <a href="/graphql-playground" class="button" style="background-color: #1DA1F2;">Twitter GraphQL Playground</a>
+    <a href="/twitter/graphql/playground" class="button" style="background-color: #1DA1F2;">Twitter GraphQL Playground</a>
 </div>
 {% endmacro %}

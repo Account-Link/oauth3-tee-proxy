@@ -130,8 +130,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
                         "name": "twitter",
                         "description": "Connect to Twitter and use its API through OAuth3 TEE Proxy.",
                         "urls": {
-                            "GraphQL Playground": "/graphql-playground",
-                            "Add Account": "/submit-cookie"
+                            "GraphQL Playground": "/twitter/graphql/playground",
+                            "Add Account": "/twitter/submit-cookie"
                         }
                     }
                 

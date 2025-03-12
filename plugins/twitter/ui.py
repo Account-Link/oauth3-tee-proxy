@@ -12,16 +12,22 @@ import os
 
 # Create a templates instance for the Twitter plugin
 template_dir = os.path.join(os.path.dirname(__file__), "templates")
+main_template_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "templates")
 templates = Jinja2Templates(directory=template_dir)
+# Add the main templates directory to Jinja loader to find base.html
+templates.env.loader.searchpath.append(main_template_dir)
 
 class TwitterUIProvider:
     """Provides UI components for the Twitter plugin."""
     
     @staticmethod
-    def get_plugin_info():
+    def get_plugin_info(request: Request = None):
         """
         Get information about the Twitter plugin for display in the UI.
         
+        Args:
+            request: The HTTP request object (optional)
+            
         Returns:
             dict: Plugin metadata including description, features, and URLs
         """
