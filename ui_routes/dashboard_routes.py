@@ -24,26 +24,6 @@ templates = Jinja2Templates(directory="templates")
 # Create router
 router = APIRouter(tags=["UI:Dashboard"])
 
-@router.get("/submit-cookie", response_class=HTMLResponse)
-async def submit_cookie_page_redirect(request: Request):
-    """
-    Redirects to the Twitter submit cookie page.
-    
-    This route exists for backwards compatibility and redirects users to the Twitter
-    plugin's cookie submission page.
-    """
-    return RedirectResponse(url="/twitter/submit-cookie", status_code=301)
-
-@router.get("/add-telegram", response_class=HTMLResponse)
-async def add_telegram_page_redirect(request: Request):
-    """
-    Redirects to the Telegram add account page.
-    
-    This route exists for backwards compatibility and redirects users to the Telegram
-    plugin's account creation page.
-    """
-    return RedirectResponse(url="/telegram/add-account", status_code=301)
-
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     """
@@ -183,12 +163,3 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "back_url": "/"
         })
 
-@router.get("/graphql-playground", response_class=HTMLResponse)
-async def graphql_playground_redirect(request: Request):
-    """
-    Redirects to the Twitter GraphQL playground provided by the Twitter GraphQL plugin.
-    
-    This route exists for backwards compatibility and redirects users to the new
-    GraphQL playground route provided by the Twitter GraphQL plugin.
-    """
-    return RedirectResponse(url="/twitter/graphql/playground", status_code=301)
