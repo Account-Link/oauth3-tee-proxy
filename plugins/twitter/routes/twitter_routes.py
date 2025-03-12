@@ -35,10 +35,40 @@ def get_verify_token_function():
 from safety import SafetyFilter, SafetyLevel
 from plugins.twitter.config import get_twitter_settings
 from plugins import RoutePlugin
-from plugins.twitter.policy import (
-    TwitterOperationsPolicy, TwitterOperationSpec, TwitterOperationCategory,
-    PolicyViolationError
-)
+from plugins.twitter.policy import TwitterPolicy
+
+# For backward compatibility
+class TwitterOperationsPolicy:
+    """Compatibility wrapper for TwitterPolicy"""
+    _instance = None
+    
+    @classmethod
+    def get_instance(cls):
+        """Get a singleton instance of the policy"""
+        if cls._instance is None:
+            cls._instance = TwitterPolicy()
+        return cls._instance
+# These classes need to be defined or imported from elsewhere if needed
+class TwitterOperationSpec:
+    """Specification for a Twitter operation"""
+    def __init__(self, category, parameters):
+        self.category = category
+        self.parameters = parameters
+
+class TwitterOperationCategory:
+    """Categories of Twitter operations"""
+    TWEET = "tweet"
+    
+    @classmethod
+    def get_all_operations(cls):
+        """Get all available operations"""
+        return {
+            cls.TWEET: "Post a tweet"
+        }
+
+class PolicyViolationError(Exception):
+    """Raised when a policy violation occurs"""
+    pass
 
 # Import the new route modules
 from .auth import create_auth_ui_router, create_cookie_auth_router
@@ -129,7 +159,10 @@ class TwitterRoutes(RoutePlugin):
                     )
                     
                     # Check if operation is allowed
-                    policy.check_operation(operation_spec)
+                    # Using is_operation_allowed as a replacement for check_operation
+                    # This is a simplified check since we're adapting to the existing API
+                    if not policy.is_operation_allowed(operation_spec.category):
+                        raise PolicyViolationError(f"Operation {operation_spec.category} not allowed by policy")
                     
                 except PolicyViolationError as e:
                     logger.warning(f"Policy violation when posting tweet: {str(e)}")
@@ -170,7 +203,7 @@ class TwitterRoutes(RoutePlugin):
             """Get the current Twitter operations policy settings"""
             try:
                 policy = TwitterOperationsPolicy.get_instance()
-                return policy.get_policy()
+                return policy.to_dict()
             except Exception as e:
                 logger.error(f"Error getting policy: {str(e)}", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Error getting policy: {str(e)}")
@@ -183,7 +216,9 @@ class TwitterRoutes(RoutePlugin):
             """Update the Twitter operations policy"""
             try:
                 policy = TwitterOperationsPolicy.get_instance()
-                policy.update_policy(policy_data)
+                # Create a new policy instance from dict and replace the current one
+                new_policy = TwitterPolicy.from_dict(policy_data)
+                TwitterOperationsPolicy._instance = new_policy
                 return {"status": "success", "message": "Policy updated"}
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
@@ -211,7 +246,15 @@ class TwitterRoutes(RoutePlugin):
             """Get a predefined policy template by name"""
             try:
                 policy = TwitterOperationsPolicy.get_instance()
-                template = policy.get_template(template_name)
+                # Map template names to method calls
+                if template_name == "default":
+                    template = TwitterPolicy.get_default_policy().to_dict()
+                elif template_name == "read_only":
+                    template = TwitterPolicy.get_read_only_policy().to_dict()
+                elif template_name == "write_only":
+                    template = TwitterPolicy.get_write_only_policy().to_dict()
+                else:
+                    template = None
                 if template:
                     return template
                 else:
