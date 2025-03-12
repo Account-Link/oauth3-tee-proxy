@@ -1,22 +1,52 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>OAuth3 Twitter Cookie</title>
-        <link rel="stylesheet" href="/static/css/styles.css">
-    </head>
-    <body>
-        <h1>Welcome to OAuth3 Twitter Cookie</h1>
-        <div class="auth-options">
-            <div class="auth-option">
-                <h2>Register with Passkey</h2>
-                <p>Create a new account using your device's biometric authentication or security key.</p>
-                <a href="/register" class="button">Register with Passkey</a>
-            </div>
-            <div class="auth-option">
-                <h2>Login with Passkey</h2>
-                <p>Already have an account? Sign in with your passkey.</p>
-                <a href="/login" class="button">Login with Passkey</a>
-            </div>
-        </div>
-    </body>
-</html> 
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Welcome to OAuth3 TEE Proxy{% endblock %}
+
+{% block header %}
+<header class="main-header text-center">
+    <h1 class="page-title">Welcome to OAuth3 TEE Proxy</h1>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="auth-options">
+    <div class="auth-option">
+        <h2>Register with Passkey</h2>
+        <p>Create a new account using your device's biometric authentication or security key.</p>
+        {{ ui.button('Register with Passkey', '/register') }}
+    </div>
+    <div class="auth-option">
+        <h2>Login with Passkey</h2>
+        <p>Already have an account? Sign in with your passkey.</p>
+        {{ ui.button('Login with Passkey', '/login') }}
+    </div>
+</div>
+
+<div class="card mt-5">
+    <div class="card-header">
+        <h3>About OAuth3 TEE Proxy</h3>
+    </div>
+    <div class="card-body">
+        <p>OAuth3 TEE Proxy is a secure intermediary between your applications and various online services. 
+        It enhances traditional OAuth by providing:</p>
+        
+        <ul>
+            <li>More granular control over access permissions</li>
+            <li>Enhanced security through Trusted Execution Environments</li>
+            <li>Multi-account support across different services</li>
+            <li>Policy-based access controls</li>
+        </ul>
+        
+        <p>Register now to get started managing your Twitter and Telegram accounts securely.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="main-footer">
+    <div class="footer-content">
+        <p>OAuth3 TEE Proxy &copy; 2025 | <a href="https://github.com/flashbots" target="_blank">Flashbots</a></p>
+    </div>
+</footer>
+{% endblock %}

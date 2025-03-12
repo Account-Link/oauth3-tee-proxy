@@ -1,0 +1,128 @@
+{# UI Macros for Reusable Components #}
+
+{# Button Macros #}
+{% macro button(text, href='#', class='', type='link', onclick='') %}
+  {% if type == 'link' %}
+    <a href="{{ href }}" class="button {{ class }}">{{ text }}</a>
+  {% elif type == 'button' %}
+    <button type="button" class="button {{ class }}" {% if onclick %}onclick="{{ onclick }}"{% endif %}>{{ text }}</button>
+  {% elif type == 'submit' %}
+    <button type="submit" class="button {{ class }}">{{ text }}</button>
+  {% endif %}
+{% endmacro %}
+
+{# Form Input Field #}
+{% macro input_field(name, id='', label='', type='text', placeholder='', value='', required=false) %}
+  <div class="form-group">
+    {% if label %}
+      <label for="{{ id or name }}">{{ label }}</label>
+    {% endif %}
+    <input 
+      type="{{ type }}" 
+      name="{{ name }}" 
+      id="{{ id or name }}" 
+      placeholder="{{ placeholder }}"
+      value="{{ value }}"
+      {% if required %}required{% endif %}
+    >
+  </div>
+{% endmacro %}
+
+{# Form Textarea #}
+{% macro textarea(name, id='', label='', placeholder='', value='', required=false, rows=5) %}
+  <div class="form-group">
+    {% if label %}
+      <label for="{{ id or name }}">{{ label }}</label>
+    {% endif %}
+    <textarea 
+      name="{{ name }}" 
+      id="{{ id or name }}" 
+      placeholder="{{ placeholder }}"
+      {% if required %}required{% endif %}
+      rows="{{ rows }}"
+    >{{ value }}</textarea>
+  </div>
+{% endmacro %}
+
+{# Card Component #}
+{% macro card(title='', class='') %}
+  <div class="card {{ class }}">
+    {% if title %}
+      <div class="card-header">
+        <h3>{{ title }}</h3>
+      </div>
+    {% endif %}
+    <div class="card-body">
+      {{ caller() }}
+    </div>
+  </div>
+{% endmacro %}
+
+{# Twitter Account Card #}
+{% macro twitter_account_card(account) %}
+  <li class="account-item">
+    <div class="account-info">
+      {% if account.profile_image_url %}
+      <div class="account-avatar">
+        <img src="{{ account.profile_image_url }}" alt="{{ account.username or 'Twitter User' }}" class="avatar">
+      </div>
+      {% endif %}
+      <div class="account-details">
+        {% if account.display_name %}
+        <div class="display-name">{{ account.display_name }}</div>
+        {% endif %}
+        
+        {% if account.username %}
+        <div class="username">
+          <a href="https://twitter.com/{{ account.username }}" target="_blank">@{{ account.username }}</a>
+        </div>
+        {% endif %}
+        
+        <div class="twitter-id">ID: {{ account.twitter_id }}</div>
+        <div class="added-date">Added: {{ account.created_at.strftime('%Y-%m-%d') }}</div>
+      </div>
+    </div>
+    <div class="account-actions">
+      {{ button('Delete', class='delete-button', type='button', onclick="deleteTwitterAccount('"+account.twitter_id+"')") }}
+    </div>
+  </li>
+{% endmacro %}
+
+{# OAuth Token Card #}
+{% macro oauth_token_card(token) %}
+  <li class="token-item">
+    <div class="token-details">
+      <div class="scope-list">
+        <strong>Scopes:</strong> {{ token.scopes }}
+      </div>
+      <div class="token-expires">
+        Expires: {{ token.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+      </div>
+    </div>
+    <div class="token-actions">
+      {{ button('Copy Token', class='copy-button', type='button', onclick="copyToken('"+token.access_token+"')") }}
+      {{ button('Revoke', class='delete-button', type='button', onclick="revokeToken('"+token.token_id+"')") }}
+    </div>
+  </li>
+{% endmacro %}
+
+{# Alert Messages #}
+{% macro alert(message, type='info') %}
+  <div class="alert alert-{{ type }}">
+    {{ message }}
+  </div>
+{% endmacro %}
+
+{# Instructions Steps #}
+{% macro instruction_steps(steps) %}
+  <div class="steps">
+    {% for step in steps %}
+      <div class="step">
+        <div class="step-number">{{ loop.index }}</div>
+        <div class="step-content">
+          {{ step }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro %}

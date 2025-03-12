@@ -1,176 +1,64 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Submit Twitter Cookie</title>
-        <link rel="stylesheet" href="/static/css/styles.css">
-        <style>
-            .instructions {
-                margin: 20px 0;
-                padding: 15px;
-                background-color: #f8f9fa;
-                border-radius: 8px;
-                border: 1px solid #dee2e6;
-            }
-            
-            .steps {
-                margin-top: 15px;
-            }
-            
-            .step {
-                margin-bottom: 10px;
-                display: flex;
-                align-items: flex-start;
-            }
-            
-            .step-number {
-                background-color: #0066cc;
-                color: white;
-                width: 24px;
-                height: 24px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                margin-right: 10px;
-                flex-shrink: 0;
-            }
-            
-            .step-content {
-                flex-grow: 1;
-            }
-            
-            .cookie-form {
-                margin-top: 25px;
-            }
-            
-            .cookie-form textarea {
-                width: 100%;
-                height: 120px;
-                font-family: monospace;
-                padding: 8px;
-                font-size: 14px;
-            }
-            
-            .form-group {
-                margin-bottom: 15px;
-            }
-            
-            .note {
-                font-size: 0.9em;
-                margin-top: 5px;
-                color: #6c757d;
-            }
-            
-            .example {
-                background-color: #f1f1f1;
-                padding: 10px;
-                border-radius: 4px;
-                margin: 10px 0;
-                font-family: monospace;
-                white-space: nowrap;
-                overflow-x: auto;
-            }
-            
-            .important {
-                color: #dc3545;
-                font-weight: bold;
-            }
-            
-            img.screenshot {
-                max-width: 100%;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                margin: 10px 0;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>Submit Twitter Cookie</h1>
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Submit Twitter Cookie - OAuth3 TEE Proxy{% endblock %}
+
+{% block page_title %}Submit Twitter Cookie{% endblock %}
+
+{% block content %}
+<div class="instructions">
+    <h2>How to get your Twitter cookie</h2>
+    
+    {% set steps = [
+        "Log in to <a href=\"https://twitter.com\" target=\"_blank\">Twitter</a> in your browser",
         
-        <div class="instructions">
-            <h2>How to get your Twitter cookie</h2>
-            
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        Log in to <a href="https://twitter.com" target="_blank">Twitter</a> in your browser
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        Open your browser's Developer Tools:
-                        <ul>
-                            <li>Chrome/Edge: Press F12 or right-click anywhere and select "Inspect"</li>
-                            <li>Firefox: Press F12 or right-click and select "Inspect Element"</li>
-                            <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        Navigate to the Storage/Application section:
-                        <ul>
-                            <li>Chrome/Edge: Click on the "Application" tab</li>
-                            <li>Firefox: Click on the "Storage" tab</li>
-                            <li>Safari: Click on the "Storage" tab</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        Find and expand the "Cookies" section, then click on "https://twitter.com"
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">5</div>
-                    <div class="step-content">
-                        Find the cookie named <code>auth_token</code> in the list and copy its value
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">6</div>
-                    <div class="step-content">
-                        <strong>Important:</strong> Format the cookie correctly by prepending "auth_token=" to the value you copied:
-                        <div class="example">auth_token=YOUR_COOKIE_VALUE</div>
-                        where <code>YOUR_COOKIE_VALUE</code> is the value of the auth_token cookie you copied.
-                    </div>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">7</div>
-                    <div class="step-content">
-                        Paste the formatted cookie in the text box below
-                    </div>
-                </div>
-            </div>
-            
-            <div class="note">
-                <p class="important">Security note:</p>
-                <p>Your Twitter cookie is sensitive information. This proxy will store this cookie in a secure environment to access Twitter on your behalf. The cookie is only used to make authorized API calls to Twitter.</p>
-            </div>
-        </div>
+        "Open your browser's Developer Tools:
+        <ul>
+            <li>Chrome/Edge: Press F12 or right-click anywhere and select \"Inspect\"</li>
+            <li>Firefox: Press F12 or right-click and select \"Inspect Element\"</li>
+            <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
+        </ul>",
         
-        <form action="/twitter/cookie" method="POST" enctype="application/x-www-form-urlencoded" class="cookie-form">
-            <div class="form-group">
-                <label for="twitter_cookie"><strong>Twitter auth_token Cookie:</strong></label>
-                <textarea 
-                    name="twitter_cookie" 
-                    id="twitter_cookie" 
-                    placeholder="Paste your cookie here in the format: auth_token=YOUR_COOKIE_VALUE"
-                    required></textarea>
-                <div class="note">Example: <code>auth_token=a1b2c3d4...</code> (much longer value)</div>
-            </div>
-            <button type="submit" class="button">Submit Cookie</button>
-            <a href="/dashboard" class="button" style="background-color: #6c757d;">Back to Dashboard</a>
-        </form>
-    </body>
-</html>
+        "Navigate to the Storage/Application section:
+        <ul>
+            <li>Chrome/Edge: Click on the \"Application\" tab</li>
+            <li>Firefox: Click on the \"Storage\" tab</li>
+            <li>Safari: Click on the \"Storage\" tab</li>
+        </ul>",
+        
+        "Find and expand the \"Cookies\" section, then click on \"https://twitter.com\"",
+        
+        "Find the cookie named <code>auth_token</code> in the list and copy its value",
+        
+        "<strong>Important:</strong> Format the cookie correctly by prepending \"auth_token=\" to the value you copied:
+        <div class=\"example\">auth_token=YOUR_COOKIE_VALUE</div>
+        where <code>YOUR_COOKIE_VALUE</code> is the value of the auth_token cookie you copied.",
+        
+        "Paste the formatted cookie in the text box below"
+    ] %}
+    
+    {{ ui.instruction_steps(steps) }}
+    
+    <div class="note">
+        <p class="important">Security note:</p>
+        <p>Your Twitter cookie is sensitive information. This proxy will store this cookie in a secure environment to access Twitter on your behalf. The cookie is only used to make authorized API calls to Twitter.</p>
+    </div>
+</div>
+
+<form action="/twitter/cookie" method="POST" enctype="application/x-www-form-urlencoded" class="cookie-form">
+    {{ ui.textarea(
+        name="twitter_cookie",
+        id="twitter_cookie",
+        label="Twitter auth_token Cookie:",
+        placeholder="Paste your cookie here in the format: auth_token=YOUR_COOKIE_VALUE",
+        required=true,
+        rows=6
+    ) }}
+    <div class="note">Example: <code>auth_token=a1b2c3d4...</code> (much longer value)</div>
+    
+    <div class="button-group mt-3">
+        {{ ui.button('Submit Cookie', '#', '', 'submit') }}
+        {{ ui.button('Back to Dashboard', '/dashboard', 'button', style='background-color: #6c757d;') }}
+    </div>
+</form>
+{% endblock %}

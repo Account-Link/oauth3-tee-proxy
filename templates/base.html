@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}OAuth3 TEE Proxy{% endblock %}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    {% block additional_css %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            {% block header %}
+            <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+            {% endblock %}
+        </header>
+
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="main-footer">
+            {% block footer %}
+            <div class="footer-content">
+                <p>OAuth3 TEE Proxy &copy; {% now 'Y' %}</p>
+            </div>
+            {% endblock %}
+        </footer>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
