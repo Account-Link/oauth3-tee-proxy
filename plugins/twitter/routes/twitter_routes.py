@@ -137,24 +137,62 @@ class TwitterRoutes(RoutePlugin):
                     detail="Authentication required. Please log in first."
                 )
             
+            # Debug the incoming request
+            logger.info(f"Cookie submission - content type: {request.headers.get('content-type')}")
+            logger.info(f"Form data present: {twitter_cookie is not None}")
+            logger.info(f"JSON data present: {cookie_data is not None}")
+            if cookie_data:
+                logger.info(f"Cookie data keys: {cookie_data.keys() if hasattr(cookie_data, 'keys') else 'No keys method'}")
+            
             # Support both form submission and JSON API
             cookie_string = None
+            is_api_call = False
             
-            # Check if this is a form submission or API call
-            if twitter_cookie:
-                cookie_string = twitter_cookie
-                is_api_call = False
-            elif cookie_data and 'cookie' in cookie_data:
-                cookie_string = cookie_data['cookie']
-                is_api_call = True
-            else:
-                # Neither form nor API provided the cookie
-                error_message = "No cookie provided. Please submit the cookie via form or API."
-                if request.headers.get('content-type') == 'application/json':
-                    # API call but no cookie
+            try:
+                # Check request content type to determine API call
+                if request.headers.get('content-type', '').startswith('application/json'):
+                    is_api_call = True
+                    
+                    # For JSON requests, get the body
+                    if not cookie_data:
+                        body = await request.json()
+                        logger.info(f"Parsed request body: {body}")
+                        if 'cookie' in body:
+                            cookie_string = body['cookie']
+                            logger.info("Found cookie in JSON body")
+                    else:
+                        # Use cookie_data from the Body parameter
+                        if 'cookie' in cookie_data:
+                            cookie_string = cookie_data['cookie']
+                            logger.info("Found cookie in Body parameter")
+                        else:
+                            logger.warning(f"Cookie not found in Body parameter. Keys: {cookie_data.keys() if hasattr(cookie_data, 'keys') else 'unknown'}")
+                
+                # For form submissions
+                elif twitter_cookie:
+                    cookie_string = twitter_cookie
+                    is_api_call = False
+                    logger.info("Found cookie in form data")
+                
+                # If no cookie found anywhere
+                if not cookie_string:
+                    error_message = "No cookie provided. Please submit the cookie via form or API."
+                    logger.warning(f"No cookie found in request. API call: {is_api_call}")
+                    
+                    if is_api_call:
+                        raise HTTPException(status_code=400, detail=error_message)
+                    else:
+                        return RedirectResponse(
+                            url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                            status_code=303
+                        )
+            except Exception as e:
+                error_message = f"Error processing request: {str(e)}"
+                logger.error(f"Error processing cookie request: {str(e)}", exc_info=True)
+                
+                if is_api_call:
                     raise HTTPException(status_code=400, detail=error_message)
                 else:
-                    # Form submission but no cookie
                     return RedirectResponse(
                         url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
                         status_code=303

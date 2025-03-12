@@ -58,9 +58,12 @@
         <div class="step">
             <div class="step-number">6</div>
             <div class="step-content">
-                <strong>Important:</strong> Format the cookie correctly by prepending "auth_token=" to the value you copied:
-                <div class="example">auth_token=YOUR_COOKIE_VALUE</div>
-                where <code>YOUR_COOKIE_VALUE</code> is the value of the auth_token cookie you copied.
+                <strong>Important:</strong> Enter the auth_token value below. You can paste it in any of these formats:
+                <ul style="margin-top: 8px;">
+                    <li>Just the auth_token value: <div class="example">a1b2c3d4...</div></li>
+                    <li>With the key name: <div class="example">auth_token=a1b2c3d4...</div></li>
+                </ul>
+                where <code>a1b2c3d4...</code> is the value of the auth_token cookie you copied.
             </div>
         </div>
         
@@ -83,11 +86,11 @@
         name="twitter_cookie",
         id="twitter_cookie",
         label="Twitter auth_token Cookie:",
-        placeholder="Paste your cookie here in the format: auth_token=YOUR_COOKIE_VALUE",
+        placeholder="Paste your auth_token value here (with or without the 'auth_token=' prefix)",
         required=true,
         rows=6
     ) }}
-    <div class="note">Example: <code>auth_token=a1b2c3d4...</code> (much longer value)</div>
+    <div class="note">Examples: <code>a1b2c3d4...</code> or <code>auth_token=a1b2c3d4...</code> (the value will be much longer)</div>
     
     <div id="submitStatus" class="status" style="display: none;"></div>
     
@@ -124,13 +127,29 @@
             
             // Parse the response
             if (response.ok) {
-                const data = await response.json();
-                showStatus(`Successfully linked Twitter account: @${data.account.username}`, 'success');
-                
-                // Redirect to dashboard after a short delay
-                setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 1500);
+                try {
+                    const data = await response.json();
+                    console.log('Server response:', data);
+                    
+                    if (data.account && data.account.username) {
+                        showStatus(`Successfully linked Twitter account: @${data.account.username}`, 'success');
+                    } else {
+                        showStatus('Successfully linked Twitter account!', 'success');
+                    }
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } catch (e) {
+                    console.error('Error parsing JSON response:', e);
+                    showStatus('Successfully linked Twitter account!', 'success');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                }
             } else {
                 // Handle error response
                 let errorMsg = 'Failed to submit cookie.';

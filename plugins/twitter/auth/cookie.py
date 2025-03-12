@@ -446,20 +446,55 @@ class TwitterCookieAuthorizationPlugin(TwitterBaseAuthorizationPlugin):
         except json.JSONDecodeError:
             # If not JSON, try to parse as raw auth_token cookie format
             logger.info("Could not parse cookie as JSON, trying raw auth_token format")
+            logger.info(f"Cookie string: '{credentials_str[:10]}...'")
             
-            # Check if it's in the format auth_token=VALUE
+            # More flexible parsing - try different formats:
+            
+            # Format 1: auth_token=VALUE
             if credentials_str.startswith('auth_token='):
                 auth_token = credentials_str.split('auth_token=', 1)[1].strip()
-                
-                # Create cookies dictionary as expected by twitter.Account
-                cookies = {
-                    "auth_token": auth_token,
-                    # Add other required cookies with empty values
-                    "ct0": "",
-                    "twid": ""
-                }
-                logger.info("Successfully parsed auth_token cookie")
-                return cookies
+                logger.info(f"Parsed auth_token format, token length: {len(auth_token)}")
+            
+            # Format 2: Just the raw token value
+            elif not any(char in credentials_str for char in '{}="\''):
+                # If it's just the raw token value (no special characters)
+                auth_token = credentials_str.strip()
+                logger.info(f"Parsed as raw token value, length: {len(auth_token)}")
+            
+            # Format 3: Wrapped in quotes
+            elif credentials_str.startswith('"') and credentials_str.endswith('"'):
+                auth_token = credentials_str[1:-1].strip()
+                logger.info(f"Parsed from quoted value, length: {len(auth_token)}")
+            
+            # Format 4: Name/value object with different separators
+            elif ':' in credentials_str or '=' in credentials_str:
+                # Try to handle various formats like {"auth_token": "VALUE"} or auth_token:VALUE
+                try:
+                    if ':' in credentials_str:
+                        parts = credentials_str.split(':', 1)
+                        key_part = parts[0].strip().strip('"\'{}')
+                        value_part = parts[1].strip().strip('"\'{}')
+                        
+                        if 'auth_token' in key_part.lower():
+                            auth_token = value_part
+                            logger.info(f"Parsed from key:value format, length: {len(auth_token)}")
+                        else:
+                            raise ValueError("Not an auth_token key")
+                    else:
+                        raise ValueError("Unrecognized format")
+                except Exception as e:
+                    logger.error(f"Error parsing complex format: {e}")
+                    raise ValueError("Could not parse cookie format") from e
             else:
-                logger.error(f"Could not parse Twitter cookie: not in JSON or auth_token format")
-                raise ValueError("Invalid Twitter cookie format. Please provide in the format: auth_token=VALUE") from None
+                logger.error(f"Could not parse Twitter cookie: not in any recognized format")
+                raise ValueError("Invalid Twitter cookie format. Please provide the auth_token value or in the format: auth_token=VALUE") from None
+                
+            # Create cookies dictionary as expected by twitter.Account
+            cookies = {
+                "auth_token": auth_token,
+                # Add other required cookies with empty values
+                "ct0": "",
+                "twid": ""
+            }
+            logger.info(f"Successfully parsed auth_token (length: {len(auth_token)})")
+            return cookies
