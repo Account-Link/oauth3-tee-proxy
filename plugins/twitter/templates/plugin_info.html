@@ -11,10 +11,10 @@
 </div>
 {% endmacro %}
 
-{% macro account_management() %}
+{% macro account_management(twitter_accounts=None) %}
 <div class="dashboard-section">
     <h2>Your Twitter Accounts</h2>
-    {% if twitter_accounts %}
+    {% if twitter_accounts and twitter_accounts|length > 0 %}
         <ul class="account-list">
             {% for account in twitter_accounts %}
                 <li class="account-item">

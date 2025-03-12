@@ -31,6 +31,7 @@ class TwitterUIProvider:
         Returns:
             dict: Plugin metadata including description, features, and URLs
         """
+        # This is already returning a dict directly, not using a template, so no change needed
         return {
             "description": "Connect to Twitter and interact with its API using OAuth3 TEE Proxy.",
             "features": [
@@ -60,10 +61,9 @@ class TwitterUIProvider:
         Returns:
             str: HTML for the Twitter accounts section
         """
-        return templates.get_template("plugin_info.html").render(
-            {"request": request, "twitter_accounts": twitter_accounts},
-            block_name="account_management"
-        )
+        # Get the template and call the account_management macro directly with the accounts
+        template = templates.env.get_template("plugin_info.html")
+        return template.module.account_management(twitter_accounts)
     
     @staticmethod
     def get_dashboard_actions(request: Request):
@@ -76,10 +76,8 @@ class TwitterUIProvider:
         Returns:
             str: HTML for Twitter action buttons
         """
-        return templates.get_template("plugin_info.html").render(
-            {"request": request},
-            block_name="dashboard_actions"
-        )
+        template = templates.env.get_template("plugin_info.html")
+        return template.module.dashboard_actions()
     
     @staticmethod
     def get_plugin_info(request: Request):
