@@ -55,13 +55,21 @@
                         {% endif %}
                         
                         {# Integrated Twitter Accounts Section #}
-                        {% if plugin_name == "twitter" and plugin_info.accounts_html is defined %}
+                        {% if plugin_name == "twitter" %}
                             <div class="plugin-accounts">
-                                <h4>Your Accounts {% if plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
-                                {{ plugin_info.accounts_html|safe }}
+                                <h4>Your Accounts {% if plugin_info.account_count and plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
+                                
+                                {% if plugin_info.accounts_html is defined %}
+                                    {{ plugin_info.accounts_html|safe }}
+                                {% else %}
+                                    <p>No Twitter accounts linked yet.</p>
+                                {% endif %}
+                                
                                 <div class="button-group mt-3">
                                     <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
-                                    <button onclick="deleteAllTwitterAccounts()" class="button delete-button">Delete All</button>
+                                    {% if plugin_info.account_count and plugin_info.account_count > 0 %}
+                                        <button onclick="deleteAllTwitterAccounts()" class="button delete-button">Delete All</button>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endif %}

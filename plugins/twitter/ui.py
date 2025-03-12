@@ -45,13 +45,15 @@ class TwitterUIProvider:
             "icon": "twitter"
         }
         
+        # Always include account count, even if zero
+        twitter_info["account_count"] = len(twitter_accounts) if twitter_accounts else 0
+        
         # If Twitter accounts are provided, include them in the plugin info
-        if twitter_accounts:
+        if twitter_accounts and len(twitter_accounts) > 0:
             # Render the account management component and include it
             template = templates.env.get_template("plugin_info.html")
             accounts_html = template.module.account_management(twitter_accounts)
             twitter_info["accounts_html"] = accounts_html
-            twitter_info["account_count"] = len(twitter_accounts)
         
         return twitter_info
     
