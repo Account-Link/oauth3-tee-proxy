@@ -9,35 +9,68 @@
 <div class="instructions">
     <h2>How to get your Twitter cookie</h2>
     
-    {% set steps = [
-        "Log in to <a href=\"https://twitter.com\" target=\"_blank\">Twitter</a> in your browser",
+    <div class="steps">
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                Log in to <a href="https://twitter.com" target="_blank">Twitter</a> in your browser
+            </div>
+        </div>
         
-        "Open your browser's Developer Tools:
-        <ul>
-            <li>Chrome/Edge: Press F12 or right-click anywhere and select \"Inspect\"</li>
-            <li>Firefox: Press F12 or right-click and select \"Inspect Element\"</li>
-            <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
-        </ul>",
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                Open your browser's Developer Tools:
+                <ul>
+                    <li>Chrome/Edge: Press F12 or right-click anywhere and select "Inspect"</li>
+                    <li>Firefox: Press F12 or right-click and select "Inspect Element"</li>
+                    <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
+                </ul>
+            </div>
+        </div>
         
-        "Navigate to the Storage/Application section:
-        <ul>
-            <li>Chrome/Edge: Click on the \"Application\" tab</li>
-            <li>Firefox: Click on the \"Storage\" tab</li>
-            <li>Safari: Click on the \"Storage\" tab</li>
-        </ul>",
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                Navigate to the Storage/Application section:
+                <ul>
+                    <li>Chrome/Edge: Click on the "Application" tab</li>
+                    <li>Firefox: Click on the "Storage" tab</li>
+                    <li>Safari: Click on the "Storage" tab</li>
+                </ul>
+            </div>
+        </div>
         
-        "Find and expand the \"Cookies\" section, then click on \"https://twitter.com\"",
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                Find and expand the "Cookies" section, then click on "https://twitter.com"
+            </div>
+        </div>
         
-        "Find the cookie named <code>auth_token</code> in the list and copy its value",
+        <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content">
+                Find the cookie named <code>auth_token</code> in the list and copy its value
+            </div>
+        </div>
         
-        "<strong>Important:</strong> Format the cookie correctly by prepending \"auth_token=\" to the value you copied:
-        <div class=\"example\">auth_token=YOUR_COOKIE_VALUE</div>
-        where <code>YOUR_COOKIE_VALUE</code> is the value of the auth_token cookie you copied.",
+        <div class="step">
+            <div class="step-number">6</div>
+            <div class="step-content">
+                <strong>Important:</strong> Format the cookie correctly by prepending "auth_token=" to the value you copied:
+                <div class="example">auth_token=YOUR_COOKIE_VALUE</div>
+                where <code>YOUR_COOKIE_VALUE</code> is the value of the auth_token cookie you copied.
+            </div>
+        </div>
         
-        "Paste the formatted cookie in the text box below"
-    ] %}
-    
-    {{ ui.instruction_steps(steps) }}
+        <div class="step">
+            <div class="step-number">7</div>
+            <div class="step-content">
+                Paste the formatted cookie in the text box below
+            </div>
+        </div>
+    </div>
     
     <div class="note">
         <p class="important">Security note:</p>
