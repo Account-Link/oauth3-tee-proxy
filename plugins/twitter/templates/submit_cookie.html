@@ -78,7 +78,7 @@
     </div>
 </div>
 
-<form action="/twitter/cookie" method="POST" enctype="application/x-www-form-urlencoded" class="cookie-form">
+<div id="cookie-form" class="cookie-form">
     {{ ui.textarea(
         name="twitter_cookie",
         id="twitter_cookie",
@@ -89,9 +89,72 @@
     ) }}
     <div class="note">Example: <code>auth_token=a1b2c3d4...</code> (much longer value)</div>
     
+    <div id="submitStatus" class="status" style="display: none;"></div>
+    
     <div class="button-group mt-3">
-        {{ ui.button('Submit Cookie', '#', '', 'submit', '', '') }}
-        {{ ui.button('Back to Dashboard', '/dashboard', 'button', 'link', '', 'background-color: #6c757d;') }}
+        <button onclick="submitCookie()" class="button" type="button">Submit Cookie</button>
+        <a href="/dashboard" class="button" style="background-color: #6c757d;">Back to Dashboard</a>
     </div>
-</form>
+</div>
+
+<script>
+    async function submitCookie() {
+        // Get the cookie value
+        const cookieValue = document.getElementById('twitter_cookie').value.trim();
+        
+        if (!cookieValue) {
+            showStatus('Please enter a Twitter cookie.', 'error');
+            return;
+        }
+        
+        // Show loading state
+        showStatus('Submitting cookie...', 'status');
+        
+        try {
+            // Submit via API
+            const response = await fetch('/twitter/cookie', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cookie: cookieValue
+                })
+            });
+            
+            // Parse the response
+            if (response.ok) {
+                const data = await response.json();
+                showStatus(`Successfully linked Twitter account: @${data.account.username}`, 'success');
+                
+                // Redirect to dashboard after a short delay
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+            } else {
+                // Handle error response
+                let errorMsg = 'Failed to submit cookie.';
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorMsg;
+                } catch (e) {
+                    // If we can't parse the JSON, use the status text
+                    errorMsg = response.statusText || errorMsg;
+                }
+                showStatus(errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('Error submitting cookie:', error);
+            showStatus('Network error. Please try again.', 'error');
+        }
+    }
+    
+    function showStatus(message, type) {
+        const statusElement = document.getElementById('submitStatus');
+        statusElement.textContent = message;
+        statusElement.className = 'status';
+        statusElement.classList.add(type);
+        statusElement.style.display = 'block';
+    }
+</script>
 {% endblock %}

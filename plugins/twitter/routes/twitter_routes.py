@@ -22,7 +22,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, Form, Response, Body, Query, Path
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -123,8 +123,9 @@ class TwitterRoutes(RoutePlugin):
         async def submit_cookie(
             response: Response,
             db: Session = Depends(get_db),
-            twitter_cookie: str = Form(..., description="Twitter cookie to submit"),
-            request: Request = None
+            twitter_cookie: str = Form(None, description="Twitter cookie to submit"),
+            request: Request = None,
+            cookie_data: dict = Body(None)
         ):
             """
             Submit and validate a Twitter cookie.
@@ -136,37 +137,74 @@ class TwitterRoutes(RoutePlugin):
                     detail="Authentication required. Please log in first."
                 )
             
+            # Support both form submission and JSON API
+            cookie_string = None
+            
+            # Check if this is a form submission or API call
+            if twitter_cookie:
+                cookie_string = twitter_cookie
+                is_api_call = False
+            elif cookie_data and 'cookie' in cookie_data:
+                cookie_string = cookie_data['cookie']
+                is_api_call = True
+            else:
+                # Neither form nor API provided the cookie
+                error_message = "No cookie provided. Please submit the cookie via form or API."
+                if request.headers.get('content-type') == 'application/json':
+                    # API call but no cookie
+                    raise HTTPException(status_code=400, detail=error_message)
+                else:
+                    # Form submission but no cookie
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                        status_code=303
+                    )
+            
             try:
                 # Get the Twitter auth plugin from our plugin manager
                 from plugin_manager import plugin_manager
                 twitter_auth = plugin_manager.create_authorization_plugin("twitter_cookie")
                 if not twitter_auth:
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Twitter cookie authorization plugin not available"
-                    )
+                    error = "Twitter cookie authorization plugin not available"
+                    if is_api_call:
+                        raise HTTPException(status_code=500, detail=error)
+                    else:
+                        return RedirectResponse(
+                            url=f"/error?message={error}&back_url=/twitter/submit-cookie", 
+                            status_code=303
+                        )
                 
                 # Parse the cookie - log the first 10 characters for debugging
-                logger.info(f"Processing cookie submission, cookie starts with: {twitter_cookie[:10]}...")
+                logger.info(f"Processing cookie submission, cookie starts with: {cookie_string[:10]}...")
                 
                 # Parse and validate the cookie
                 try:
-                    credentials = twitter_auth.credentials_from_string(twitter_cookie)
+                    credentials = twitter_auth.credentials_from_string(cookie_string)
                 except ValueError as e:
+                    error_message = f"Invalid Twitter cookie format: {str(e)}. Please provide the cookie in the format: auth_token=YOUR_COOKIE_VALUE"
                     logger.error(f"Error parsing cookie: {str(e)}")
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Invalid Twitter cookie format: {str(e)}. Please provide the cookie in the format: auth_token=YOUR_COOKIE_VALUE"
-                    )
+                    
+                    if is_api_call:
+                        raise HTTPException(status_code=400, detail=error_message)
+                    else:
+                        return RedirectResponse(
+                            url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                            status_code=303
+                        )
                 
                 # Validate credentials
                 is_valid = await twitter_auth.validate_credentials(credentials)
                 if not is_valid:
+                    error_message = "Invalid Twitter cookie. The cookie may be expired or invalid. Please provide a fresh auth_token cookie from a logged-in Twitter session."
                     logger.error("Credentials validation failed")
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Invalid Twitter cookie. The cookie may be expired or invalid. Please provide a fresh auth_token cookie from a logged-in Twitter session."
-                    )
+                    
+                    if is_api_call:
+                        raise HTTPException(status_code=400, detail=error_message)
+                    else:
+                        return RedirectResponse(
+                            url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                            status_code=303
+                        )
                 
                 # Get Twitter ID and profile information from the cookie
                 try:
@@ -182,11 +220,16 @@ class TwitterRoutes(RoutePlugin):
                     profile_image_url = profile_info.get('profile_image_url')
                     
                 except ValueError as e:
+                    error_message = f"Could not get Twitter ID: {str(e)}"
                     logger.error(f"Error getting Twitter ID: {str(e)}")
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Could not get Twitter ID: {str(e)}"
-                    )
+                    
+                    if is_api_call:
+                        raise HTTPException(status_code=400, detail=error_message)
+                    else:
+                        return RedirectResponse(
+                            url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                            status_code=303
+                        )
                 
                 # Check if account already exists
                 existing_account = db.query(TwitterAccount).filter(
@@ -223,8 +266,24 @@ class TwitterRoutes(RoutePlugin):
                 
                 db.commit()
                 logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
-                # Return a redirect to the dashboard instead of a JSON response
-                return RedirectResponse(url="/dashboard", status_code=303)
+                
+                # Return different response based on call type
+                if is_api_call:
+                    # Return account info for API calls
+                    return {
+                        "status": "success",
+                        "message": "Twitter account successfully linked",
+                        "account": {
+                            "twitter_id": twitter_id,
+                            "username": username,
+                            "display_name": display_name,
+                            "profile_image_url": profile_image_url
+                        }
+                    }
+                else:
+                    # Return a redirect for form submissions
+                    return RedirectResponse(url="/dashboard", status_code=303)
+                    
             except HTTPException:
                 # Re-raise HTTP exceptions directly to preserve their status code and detail
                 raise
@@ -232,20 +291,28 @@ class TwitterRoutes(RoutePlugin):
                 # Handle ValueError separately with a 400 status code
                 error_message = f"Invalid Twitter cookie: {str(e)}"
                 logger.error(f"Value error processing cookie: {str(e)}", exc_info=True)
-                # Redirect to error page instead of raising an HTTP exception
-                return RedirectResponse(
-                    url=f"/error?message={error_message}&back_url=/twitter-login", 
-                    status_code=303
-                )
+                
+                if is_api_call:
+                    raise HTTPException(status_code=400, detail=error_message)
+                else:
+                    # Redirect to error page for form submissions
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                        status_code=303
+                    )
             except Exception as e:
                 # Log any other unexpected errors
                 error_message = f"An error occurred while processing your request: {str(e)}"
                 logger.error(f"Error processing cookie submission: {str(e)}", exc_info=True)
-                # Redirect to error page
-                return RedirectResponse(
-                    url=f"/error?message={error_message}&back_url=/twitter-login", 
-                    status_code=303
-                )
+                
+                if is_api_call:
+                    raise HTTPException(status_code=500, detail=error_message)
+                else:
+                    # Redirect to error page for form submissions
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/twitter/submit-cookie", 
+                        status_code=303
+                    )
         
         @router.post("/tweet")
         async def post_tweet(
@@ -522,15 +589,31 @@ class TwitterRoutes(RoutePlugin):
                 db.commit()
                 
                 logger.info(f"Successfully deleted Twitter account {twitter_id} for user {user_id}")
-                return RedirectResponse(url="/dashboard", status_code=303)
+                
+                # Check if this is an API call based on Accept header
+                if request.headers.get("accept") == "application/json":
+                    return {
+                        "status": "success",
+                        "message": f"Successfully deleted Twitter account {twitter_id}",
+                        "twitter_id": twitter_id
+                    }
+                else:
+                    # Traditional web form flow
+                    return RedirectResponse(url="/dashboard", status_code=303)
                 
             except Exception as e:
                 logger.error(f"Error deleting Twitter account: {str(e)}", exc_info=True)
                 error_message = f"Error deleting Twitter account: {str(e)}"
-                return RedirectResponse(
-                    url=f"/error?message={error_message}&back_url=/dashboard",
-                    status_code=303
-                )
+                if request.headers.get("accept") == "application/json":
+                    return JSONResponse(
+                        status_code=500,
+                        content={"status": "error", "detail": error_message}
+                    )
+                else:
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/dashboard",
+                        status_code=303
+                    )
                 
         @router.delete("/accounts")
         async def delete_all_twitter_accounts(
@@ -565,15 +648,31 @@ class TwitterRoutes(RoutePlugin):
                 db.commit()
                 
                 logger.info(f"Successfully deleted {deleted_count} Twitter accounts for user {user_id}")
-                return RedirectResponse(url="/dashboard", status_code=303)
+                
+                # Check if this is an API call based on Accept header
+                if request.headers.get("accept") == "application/json":
+                    return {
+                        "status": "success",
+                        "message": f"Successfully deleted {deleted_count} Twitter accounts",
+                        "count": deleted_count
+                    }
+                else:
+                    # Traditional web form flow
+                    return RedirectResponse(url="/dashboard", status_code=303)
                 
             except Exception as e:
                 logger.error(f"Error deleting all Twitter accounts: {str(e)}", exc_info=True)
                 error_message = f"Error deleting all Twitter accounts: {str(e)}"
-                return RedirectResponse(
-                    url=f"/error?message={error_message}&back_url=/dashboard",
-                    status_code=303
-                )
+                if request.headers.get("accept") == "application/json":
+                    return JSONResponse(
+                        status_code=500,
+                        content={"status": "error", "detail": error_message}
+                    )
+                else:
+                    return RedirectResponse(
+                        url=f"/error?message={error_message}&back_url=/dashboard",
+                        status_code=303
+                    )
         
                 
         return router

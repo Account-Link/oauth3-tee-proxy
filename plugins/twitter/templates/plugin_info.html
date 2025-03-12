@@ -15,7 +15,7 @@
 {% if twitter_accounts and twitter_accounts|length > 0 %}
     <ul class="account-list plugin-account-list">
         {% for account in twitter_accounts %}
-            <li class="account-item">
+            <li class="account-item" data-twitter-id="{{ account.twitter_id }}">
                 <div class="account-info">
                     {% if account.profile_image_url %}
                     <div class="account-avatar">
