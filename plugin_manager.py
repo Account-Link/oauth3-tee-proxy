@@ -373,6 +373,55 @@ class PluginManager:
         """
         return self._plugin_ui_providers.copy()
         
+    def get_plugin_info(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get information about all available plugins.
+        
+        This method collects metadata about all registered plugins, including:
+        - Plugin name and description
+        - Available actions or UI components
+        - Configuration options
+        - Support status
+        
+        If a plugin has a UI provider with a get_plugin_info method, that method
+        is called to get additional plugin information.
+        
+        Returns:
+            Dict[str, Dict[str, Any]]: Dictionary mapping plugin names to their metadata
+        """
+        plugin_info = {}
+        
+        # Get all resource plugins
+        for service_name, plugin_class in self.get_all_resource_plugins().items():
+            info = {
+                "name": service_name,
+                "description": getattr(plugin_class, "DESCRIPTION", f"Integration with {service_name}"),
+                "type": "resource",
+                "urls": {}
+            }
+            
+            # Add plugin-specific URLs
+            if service_name == "twitter":
+                info["urls"] = {
+                    "GraphQL Playground": "/graphql-playground",
+                    "Add Account": "/submit-cookie"
+                }
+            elif service_name == "telegram":
+                info["urls"] = {
+                    "Add Account": "/add-telegram"
+                }
+            
+            # Check if plugin has a UI provider with get_plugin_info method
+            ui_provider = self._plugin_ui_providers.get(service_name)
+            if ui_provider and hasattr(ui_provider, "get_plugin_info"):
+                # Merge with UI provider info
+                ui_info = ui_provider.get_plugin_info()
+                info.update(ui_info)
+            
+            plugin_info[service_name] = info
+        
+        return plugin_info
+        
     def render_dashboard_components(self, request: Request, context: Dict[str, Any]) -> List[str]:
         """
         Render dashboard components from all plugins.

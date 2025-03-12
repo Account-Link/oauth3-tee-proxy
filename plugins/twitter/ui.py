@@ -18,6 +18,31 @@ class TwitterUIProvider:
     """Provides UI components for the Twitter plugin."""
     
     @staticmethod
+    def get_plugin_info():
+        """
+        Get information about the Twitter plugin for display in the UI.
+        
+        Returns:
+            dict: Plugin metadata including description, features, and URLs
+        """
+        return {
+            "description": "Connect to Twitter and interact with its API using OAuth3 TEE Proxy.",
+            "features": [
+                "Authenticate using browser cookies or OAuth",
+                "Post tweets and interact with Twitter content",
+                "Execute GraphQL queries against Twitter's internal API",
+                "Access Twitter's v1.1 REST API"
+            ],
+            "urls": {
+                "GraphQL Playground": "/graphql-playground",
+                "Add Account": "/submit-cookie",
+                "Documentation": "https://developer.twitter.com/en/docs"
+            },
+            "color": "#1DA1F2",
+            "icon": "twitter"
+        }
+    
+    @staticmethod
     def get_dashboard_component(request: Request, twitter_accounts):
         """
         Returns HTML for the Twitter accounts component on the dashboard.

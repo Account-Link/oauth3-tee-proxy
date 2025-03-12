@@ -311,3 +311,88 @@ img.screenshot {
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
+/* Plugin Grid */
+.plugins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.plugin-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plugin-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.plugin-header {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+}
+
+.plugin-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.plugin-body {
+    padding: 15px;
+}
+
+.plugin-features {
+    margin-top: 10px;
+}
+
+.plugin-features h4 {
+    margin-bottom: 8px;
+    font-size: 0.95em;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.plugin-features ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.plugin-features li {
+    margin-bottom: 4px;
+    font-size: 0.9em;
+}
+
+.plugin-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+/* Service-specific styling */
+.plugin-card[data-plugin="twitter"] .plugin-header {
+    background-color: #1DA1F2;
+    color: white;
+}
+
+.plugin-card[data-plugin="twitter"] .plugin-header h3 {
+    color: white;
+}
+
+.plugin-card[data-plugin="telegram"] .plugin-header {
+    background-color: #0088cc;
+    color: white;
+}
+
+.plugin-card[data-plugin="telegram"] .plugin-header h3 {
+    color: white;
+}

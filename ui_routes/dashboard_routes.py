@@ -100,6 +100,9 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     # Get all available scopes from plugins
     available_scopes = plugin_manager.get_all_plugin_scopes()
     
+    # Get plugin information from plugin manager
+    available_plugins = plugin_manager.get_plugin_info()
+    
     # Create the template context
     context = {
         "request": request,
@@ -107,7 +110,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         "twitter_accounts": twitter_accounts,
         "telegram_accounts": telegram_accounts,
         "oauth2_tokens": oauth2_tokens,
-        "available_scopes": available_scopes.keys()
+        "available_scopes": available_scopes.keys(),
+        "available_plugins": available_plugins
     }
     
     # Render plugin-specific UI components
