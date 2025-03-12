@@ -13,7 +13,6 @@ from fastapi import (
     Request
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -23,10 +22,6 @@ from config import get_settings
 from database import get_db, engine, Base
 from models import User, WebAuthnCredential, OAuth2Token
 from oauth2_routes import router as oauth2_router
-
-# Import plugins when needed
-from plugins.twitter.models import TwitterAccount
-from plugins.telegram.models import TelegramAccount, TelegramChannel
 
 # Plugin system
 from plugin_manager import plugin_manager
@@ -43,7 +38,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="OAuth3 TEE Proxy")
-templates = Jinja2Templates(directory="templates")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -65,8 +59,8 @@ app.add_middleware(
 )
 
 # Import and include routers
-from webauthn_routes import router as webauthn_router
 from oauth2_routes import router as oauth2_router, update_scopes_from_plugins
+from ui_routes import router as ui_router
 
 # Initialize plugins first
 plugin_manager.discover_plugins()
@@ -75,154 +69,14 @@ plugin_manager.discover_plugins()
 update_scopes_from_plugins()
 
 # Now include routers
-app.include_router(webauthn_router)
 app.include_router(oauth2_router)
+app.include_router(ui_router)
 
 # Include service-specific routers from plugins
 service_routers = plugin_manager.get_service_routers()
 for service_name, router in service_routers.items():
     app.include_router(router, prefix=f"/{service_name}")
     logger.info(f"Mounted routes for service: {service_name}")
-
-# Routes for web interface (browser-based)
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
-
-@app.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request):
-    return templates.TemplateResponse("webauthn_register.html", {"request": request})
-
-@app.get("/submit-cookie", response_class=HTMLResponse)
-async def submit_cookie_page(request: Request):
-    return templates.TemplateResponse("submit_cookie.html", {"request": request})
-
-
-@app.get("/error", response_class=HTMLResponse)
-async def error_page(request: Request, message: str, back_url: str = "/"):
-    """
-    Display an error page with a custom message.
-    
-    Args:
-        request (Request): The HTTP request object
-        message (str): The error message to display
-        back_url (str): The URL to go back to
-    """
-    return templates.TemplateResponse("error.html", {
-        "request": request,
-        "error_message": message,
-        "back_url": back_url
-    })
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("webauthn_login.html", {"request": request})
-
-@app.get("/add-telegram", response_class=HTMLResponse)
-async def add_telegram_page(request: Request):
-    # Check if user is authenticated
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    return templates.TemplateResponse("add_telegram.html", {"request": request})
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        request.session.clear()
-        return RedirectResponse(url="/login")
-    
-    # Get accounts from enabled plugins
-    # For now, we still query directly, but with a clearer separation that these are plugin-specific
-    twitter_accounts = []
-    telegram_accounts = []
-    
-    # Check if Twitter plugin is available
-    if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
-        twitter_accounts = db.query(TwitterAccount).filter(
-            TwitterAccount.user_id == user_id
-        ).all()
-        
-        # Note: We rely on the actual authentication process to populate user profile information
-        # No mock data is used here - the user's real profile data is stored during authentication
-    
-    # Check if Telegram plugin is available
-    if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
-        telegram_accounts = db.query(TelegramAccount).filter(
-            TelegramAccount.user_id == user_id
-        ).all()
-        
-        # Get channels for each Telegram account
-        for account in telegram_accounts:
-            account.channels = db.query(TelegramChannel).filter(
-                TelegramChannel.telegram_account_id == account.id
-            ).all()
-    
-    # Get active OAuth2 tokens
-    oauth2_tokens = db.query(OAuth2Token).filter(
-        OAuth2Token.user_id == user_id,
-        OAuth2Token.is_active == True,
-        OAuth2Token.expires_at > datetime.utcnow()
-    ).all()
-    
-    # Get all available scopes from plugins
-    available_scopes = plugin_manager.get_all_plugin_scopes()
-    
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {
-            "request": request,
-            "user": user,
-            "twitter_accounts": twitter_accounts,
-            "telegram_accounts": telegram_accounts,
-            "oauth2_tokens": oauth2_tokens,
-            "available_scopes": available_scopes.keys()
-        }
-    )
-
-@app.get("/graphql-playground", response_class=HTMLResponse)
-async def graphql_playground(request: Request, db: Session = Depends(get_db)):
-    """
-    Twitter GraphQL API playground for testing queries.
-    
-    This page provides a user interface for testing Twitter GraphQL queries through
-    the OAuth3 TEE Proxy. It allows selecting from predefined operations or entering
-    custom query IDs, and supports both GET and POST methods.
-    """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/login")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        request.session.clear()
-        return RedirectResponse(url="/login")
-    
-    # Get active OAuth2 tokens with appropriate scopes
-    oauth2_tokens = db.query(OAuth2Token).filter(
-        OAuth2Token.user_id == user_id,
-        OAuth2Token.is_active == True,
-        OAuth2Token.expires_at > datetime.utcnow(),
-        OAuth2Token.scopes.contains("twitter.graphql")
-    ).all()
-    
-    # Import the Twitter GraphQL operations - use a lazy import to avoid circular dependencies
-    from plugins.twitter.policy import TWITTER_GRAPHQL_OPERATIONS
-    
-    return templates.TemplateResponse(
-        "graphql_playground.html",
-        {
-            "request": request,
-            "user": user,
-            "oauth2_tokens": oauth2_tokens,
-            "operations": TWITTER_GRAPHQL_OPERATIONS
-        }
-    )
 
 # API routes are now provided by service-specific plugins
 

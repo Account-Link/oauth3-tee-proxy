@@ -34,7 +34,7 @@ from models import User, WebAuthnCredential
 from config import get_settings
 from database import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/webauthn", tags=["UI:WebAuthn"])
 settings = get_settings()
 
 # Configuration
@@ -129,12 +129,13 @@ class AuthenticationResponse(BaseModel):
     credential: dict
     client_data: str
 
-@router.post("/webauthn/register/begin")
+@router.post("/register/begin")
 async def start_registration(
     request: RegistrationRequest,
     reg_session: RegistrationSession = Depends(get_registration_session),
     db: Session = Depends(get_db)
 ):
+    """Begin the WebAuthn registration process by generating registration options."""
     # Check if username is available
     existing_user = db.query(User).filter(User.username == request.username).first()
     if existing_user:
@@ -165,12 +166,13 @@ async def start_registration(
     
     return json.loads(options_to_json(options))
 
-@router.post("/webauthn/register/complete")
+@router.post("/register/complete")
 async def complete_registration(
     response: RegistrationResponse,
     reg_session: RegistrationSession = Depends(get_registration_session),
     db: Session = Depends(get_db)
 ):
+    """Complete the WebAuthn registration process by verifying the authenticator response."""
     expected_challenge = reg_session.get_challenge()
     temp_user_id = reg_session.get_user_id()
     pending_registration = reg_session.session.get("pending_registration")
@@ -230,12 +232,13 @@ async def complete_registration(
         print("Error type:", type(e))
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/webauthn/login/begin")
+@router.post("/login/begin")
 async def start_authentication(
     request: AuthenticationRequest,
     auth_session: AuthenticationSession = Depends(get_authentication_session),
     db: Session = Depends(get_db)
 ):
+    """Begin the WebAuthn authentication process by generating authentication options."""
     try:
         # Find user by username
         user = db.query(User).filter(User.username == request.username).first()
@@ -271,12 +274,13 @@ async def start_authentication(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/webauthn/login/complete")
+@router.post("/login/complete")
 async def complete_authentication(
     response: AuthenticationResponse,
     auth_session: AuthenticationSession = Depends(get_authentication_session),
     db: Session = Depends(get_db)
 ):
+    """Complete the WebAuthn authentication process by verifying the authenticator response."""
     try:
         expected_challenge = auth_session.get_challenge()
         user_id = auth_session.get_user_id()
@@ -332,4 +336,4 @@ async def complete_authentication(
         return {"status": "success", "user_id": user_id}
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
