@@ -38,3 +38,11 @@
   - `ResourcePlugin`: Resource server API interaction
 - Plugin registration via entry points in setup.py
 - Plugin configuration via environment variables or config file
+
+## TESTING PRINCIPLES
+- NEVER add test-specific code to production codebase
+- Tests should be aware of the code, not vice versa
+- Update tests to match production behavior, not the other way around
+- If tests require special handling, implement it in test fixtures or helpers
+- Use mocks and patch appropriately to simulate different behaviors
+- Maintain clear separation between test and production environments

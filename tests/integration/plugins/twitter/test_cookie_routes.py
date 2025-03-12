@@ -82,14 +82,15 @@ class TestTwitterCookieRoutes:
             # Set up client session for the test user
             client.set_session({"user_id": test_user.id})
             
-            # Make the request
+            # Make the request with JSON data to trigger API path
             response = client.post(
                 "/twitter/cookie",
-                data={"twitter_cookie": "invalid-cookie"},
+                json={"cookie": "invalid-cookie"},
+                headers={"Content-Type": "application/json"},
                 allow_redirects=False
             )
             
-            # With invalid credentials, we get a 400 Bad Request
+            # With invalid credentials in JSON format, we get a 400 Bad Request
             assert response.status_code == 400
             
             # Verify the mock was called correctly
