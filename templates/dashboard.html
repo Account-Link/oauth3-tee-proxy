@@ -9,7 +9,7 @@
 <header class="main-header d-flex justify-content-between align-items-center">
     <h1 class="page-title">{{ self.page_title() }}</h1>
     <div class="header-actions">
-        {{ ui.button('Twitter GraphQL Playground', '/graphql-playground', 'button', style='background-color: #1DA1F2;') }}
+        {{ ui.button('Twitter GraphQL Playground', '/graphql-playground', 'button', 'link', '', 'background-color: #1DA1F2;') }}
     </div>
 </header>
 {% endblock %}
@@ -42,7 +42,7 @@
                 <li class="account-item">
                     <span>Phone: {{ account.phone_number }}</span>
                     <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
-                    {{ ui.button('Refresh Channels', '#', 'delete-button', 'button', "refreshChannels('"+account.id+"')") }}
+                    {{ ui.button('Refresh Channels', '#', 'delete-button', 'button', "refreshChannels('"+account.id+"')", '') }}
                 </li>
                 {% if account.channels %}
                     <ul class="channel-list">

@@ -1,13 +1,13 @@
 {# UI Macros for Reusable Components #}
 
 {# Button Macros #}
-{% macro button(text, href='#', class='', type='link', onclick='') %}
+{% macro button(text, href='#', class='', type='link', onclick='', style='') %}
   {% if type == 'link' %}
-    <a href="{{ href }}" class="button {{ class }}">{{ text }}</a>
+    <a href="{{ href }}" class="button {{ class }}" {% if style %}style="{{ style }}"{% endif %}>{{ text }}</a>
   {% elif type == 'button' %}
-    <button type="button" class="button {{ class }}" {% if onclick %}onclick="{{ onclick }}"{% endif %}>{{ text }}</button>
+    <button type="button" class="button {{ class }}" {% if onclick %}onclick="{{ onclick }}"{% endif %} {% if style %}style="{{ style }}"{% endif %}>{{ text }}</button>
   {% elif type == 'submit' %}
-    <button type="submit" class="button {{ class }}">{{ text }}</button>
+    <button type="submit" class="button {{ class }}" {% if style %}style="{{ style }}"{% endif %}>{{ text }}</button>
   {% endif %}
 {% endmacro %}
 
@@ -83,7 +83,7 @@
       </div>
     </div>
     <div class="account-actions">
-      {{ button('Delete', class='delete-button', type='button', onclick="deleteTwitterAccount('"+account.twitter_id+"')") }}
+      <button class="button delete-button" onclick="deleteTwitterAccount('{{ account.twitter_id }}')">Delete</button>
     </div>
   </li>
 {% endmacro %}
@@ -100,8 +100,8 @@
       </div>
     </div>
     <div class="token-actions">
-      {{ button('Copy Token', class='copy-button', type='button', onclick="copyToken('"+token.access_token+"')") }}
-      {{ button('Revoke', class='delete-button', type='button', onclick="revokeToken('"+token.token_id+"')") }}
+      <button class="button copy-button" onclick="copyToken('{{ token.access_token }}')">Copy Token</button>
+      <button class="button delete-button" onclick="revokeToken('{{ token.token_id }}')">Revoke</button>
     </div>
   </li>
 {% endmacro %}

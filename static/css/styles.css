@@ -117,5 +117,4 @@ code {
 .justify-content-between { justify-content: space-between; }
 .justify-content-center { justify-content: center; }
 
-/* Import Component Styles */
-@import url('/static/css/components.css');
+/* Component styles are handled in components.css - linked separately */
