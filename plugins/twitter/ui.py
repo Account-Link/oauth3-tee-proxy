@@ -40,10 +40,7 @@ class TwitterUIProvider:
                 "Execute GraphQL queries against Twitter's internal API",
                 "Access Twitter's v1.1 REST API"
             ],
-            "urls": {
-                "GraphQL Playground": "/twitter/graphql/playground",
-                "Documentation": "https://developer.twitter.com/en/docs"
-            },
+            "urls": {},  # Removed buttons as requested
             "color": "#1DA1F2",
             "icon": "twitter"
         }

@@ -61,6 +61,7 @@
                                 {{ plugin_info.accounts_html|safe }}
                                 <div class="button-group mt-3">
                                     <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
+                                    <button onclick="deleteAllTwitterAccounts()" class="button delete-button">Delete All</button>
                                 </div>
                             </div>
                         {% endif %}
@@ -194,6 +195,29 @@
         } catch (error) {
             console.error('Error:', error);
             alert('Error deleting Twitter account');
+        }
+    }
+    
+    async function deleteAllTwitterAccounts() {
+        if (!confirm('Are you sure you want to delete ALL your Twitter accounts? This action cannot be undone.')) return;
+        
+        // Double confirmation for dangerous action
+        if (!confirm('CAUTION: This will remove all Twitter accounts from your profile. Press OK to continue.')) return;
+        
+        try {
+            const response = await fetch('/twitter/accounts', {
+                method: 'DELETE'
+            });
+            
+            if (response.ok || response.redirected) {
+                window.location.href = response.redirected ? response.url : '/dashboard';
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to delete all Twitter accounts');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error deleting all Twitter accounts');
         }
     }
 </script>

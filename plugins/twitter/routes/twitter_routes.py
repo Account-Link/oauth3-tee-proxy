@@ -531,6 +531,49 @@ class TwitterRoutes(RoutePlugin):
                     url=f"/error?message={error_message}&back_url=/dashboard",
                     status_code=303
                 )
+                
+        @router.delete("/accounts")
+        async def delete_all_twitter_accounts(
+            request: Request,
+            db: Session = Depends(get_db)
+        ):
+            """
+            Delete all Twitter accounts associated with the current user.
+            
+            This endpoint removes all Twitter accounts linked to the current user's profile.
+            This is a destructive action and cannot be undone.
+            
+            Args:
+                request (Request): The FastAPI request object
+                db (Session): Database session dependency
+                
+            Returns:
+                RedirectResponse: Redirect to dashboard
+            """
+            # Check if user is authenticated via session
+            user_id = request.session.get("user_id")
+            if not user_id:
+                return RedirectResponse(url="/login", status_code=303)
+            
+            try:
+                # Get all Twitter accounts for this user
+                deleted_count = db.query(TwitterAccount).filter(
+                    TwitterAccount.user_id == user_id
+                ).delete(synchronize_session=False)
+                
+                # Commit the deletion
+                db.commit()
+                
+                logger.info(f"Successfully deleted {deleted_count} Twitter accounts for user {user_id}")
+                return RedirectResponse(url="/dashboard", status_code=303)
+                
+            except Exception as e:
+                logger.error(f"Error deleting all Twitter accounts: {str(e)}", exc_info=True)
+                error_message = f"Error deleting all Twitter accounts: {str(e)}"
+                return RedirectResponse(
+                    url=f"/error?message={error_message}&back_url=/dashboard",
+                    status_code=303
+                )
         
                 
         return router
