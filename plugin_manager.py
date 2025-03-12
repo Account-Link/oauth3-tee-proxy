@@ -426,8 +426,15 @@ class PluginManager:
                     if ui_provider:
                         if hasattr(ui_provider, "get_plugin_info"):
                             try:
-                                # Merge with UI provider info
-                                ui_info = ui_provider.get_plugin_info()
+                                # Merge with UI provider info - with or without request
+                                if hasattr(ui_provider.get_plugin_info, "__code__") and "request" in ui_provider.get_plugin_info.__code__.co_varnames:
+                                    # Method accepts request parameter
+                                    from fastapi import Request
+                                    ui_info = ui_provider.get_plugin_info(Request(scope={"type": "http"}))
+                                else:
+                                    # Method doesn't need request
+                                    ui_info = ui_provider.get_plugin_info()
+                                    
                                 if isinstance(ui_info, dict):
                                     info.update(ui_info)
                             except Exception as e:

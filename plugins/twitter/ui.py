@@ -21,7 +21,7 @@ class TwitterUIProvider:
     """Provides UI components for the Twitter plugin."""
     
     @staticmethod
-    def get_plugin_info(request: Request = None):
+    def get_plugin_info(request = None):
         """
         Get information about the Twitter plugin for display in the UI.
         

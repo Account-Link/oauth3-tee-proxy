@@ -21,7 +21,7 @@ class TwitterGraphQLUIProvider:
     """Provides UI components for the Twitter GraphQL plugin."""
     
     @staticmethod
-    def get_plugin_info(request: Request = None):
+    def get_plugin_info(request = None):
         """
         Returns metadata about the Twitter GraphQL plugin.
         
