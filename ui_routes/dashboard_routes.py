@@ -131,29 +131,9 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         except Exception as e:
             logger.error(f"Error in plugin info fallback: {e}")
         
-        try:
-            # Render plugin-specific UI components
-            components = []
-            try:
-                components = plugin_manager.render_dashboard_components(request, context)
-                # Debug logging for components
-                for i, comp in enumerate(components):
-                    logger.info(f"Dashboard component {i+1} type: {type(comp)}")
-                    logger.info(f"Dashboard component {i+1} length: {len(comp) if comp else 0}")
-                    # Check if it contains Twitter account IDs
-                    for acct in context["twitter_accounts"]:
-                        if comp and acct.twitter_id in comp:
-                            logger.info(f"Component {i+1} contains Twitter account {acct.twitter_id}")
-                        else:
-                            logger.warning(f"Component {i+1} does NOT contain Twitter account {acct.twitter_id}")
-            except Exception as e:
-                logger.error(f"Error rendering plugin components: {e}")
-            
-            # Save components to context
-            logger.info(f"Setting plugin_components in context with {len(components)} components")
-            context["plugin_components"] = components
-        except Exception as e:
-            logger.error(f"Error setting plugin components: {e}")
+        # We no longer need to render separate plugin components as they're
+        # now integrated directly into the plugin cards in the "Available Plugins" section
+        context["plugin_components"] = []
         
         try:
             # Get plugin-specific dashboard actions (if any)

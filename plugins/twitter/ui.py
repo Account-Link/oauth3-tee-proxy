@@ -42,7 +42,6 @@ class TwitterUIProvider:
             ],
             "urls": {
                 "GraphQL Playground": "/twitter/graphql/playground",
-                "Add Account": "/twitter/submit-cookie",
                 "Documentation": "https://developer.twitter.com/en/docs"
             },
             "color": "#1DA1F2",
@@ -89,21 +88,7 @@ class TwitterUIProvider:
         template = templates.env.get_template("plugin_info.html")
         return template.module.dashboard_actions()
     
-    @staticmethod
-    def get_plugin_info(request: Request):
-        """
-        Returns HTML describing the Twitter plugin capabilities.
-        
-        Args:
-            request: The HTTP request object
-        
-        Returns:
-            str: HTML with plugin information
-        """
-        return templates.get_template("plugin_info.html").render(
-            {"request": request},
-            block_name="plugin_info"
-        )
+# Removed duplicate get_plugin_info method
         
     @staticmethod
     def render_graphql_playground(request: Request, oauth2_tokens, operations):
