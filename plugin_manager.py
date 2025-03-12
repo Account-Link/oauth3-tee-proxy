@@ -373,7 +373,7 @@ class PluginManager:
         """
         return self._plugin_ui_providers.copy()
         
-    def get_plugin_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_plugin_info(self, context: Dict[str, Any] = None) -> Dict[str, Dict[str, Any]]:
         """
         Get information about all available plugins.
         
@@ -386,10 +386,17 @@ class PluginManager:
         If a plugin has a UI provider with a get_plugin_info method, that method
         is called to get additional plugin information.
         
+        Args:
+            context (Dict[str, Any], optional): Optional context data to pass to plugin UI providers
+        
         Returns:
             Dict[str, Dict[str, Any]]: Dictionary mapping plugin names to their metadata
         """
         plugin_info = {}
+        
+        # Initialize context if not provided
+        if context is None:
+            context = {}
         
         try:
             # Get all resource plugins
@@ -427,12 +434,30 @@ class PluginManager:
                         if hasattr(ui_provider, "get_plugin_info"):
                             try:
                                 # Merge with UI provider info - with or without request
-                                if hasattr(ui_provider.get_plugin_info, "__code__") and "request" in ui_provider.get_plugin_info.__code__.co_varnames:
-                                    # Method accepts request parameter
-                                    from fastapi import Request
-                                    ui_info = ui_provider.get_plugin_info(Request(scope={"type": "http"}))
+                                # Get Twitter accounts if this is the Twitter plugin
+                                twitter_accounts = []
+                                if service_name == "twitter" and "twitter_accounts" in context:
+                                    twitter_accounts = context.get("twitter_accounts", [])
+                                
+                                # Check what parameters the method accepts
+                                method_code = getattr(ui_provider.get_plugin_info, "__code__", None)
+                                if method_code:
+                                    param_names = method_code.co_varnames[:method_code.co_argcount]
+                                    kwargs = {}
+                                    
+                                    # Add request parameter if accepted
+                                    if "request" in param_names:
+                                        from fastapi import Request
+                                        kwargs["request"] = Request(scope={"type": "http"})
+                                    
+                                    # Add twitter_accounts parameter if accepted and this is Twitter
+                                    if "twitter_accounts" in param_names and service_name == "twitter":
+                                        kwargs["twitter_accounts"] = twitter_accounts
+                                    
+                                    # Call with appropriate parameters
+                                    ui_info = ui_provider.get_plugin_info(**kwargs)
                                 else:
-                                    # Method doesn't need request
+                                    # Fallback to no parameters
                                     ui_info = ui_provider.get_plugin_info()
                                     
                                 if isinstance(ui_info, dict):

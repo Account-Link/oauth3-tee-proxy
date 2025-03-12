@@ -396,3 +396,34 @@ img.screenshot {
 .plugin-card[data-plugin="telegram"] .plugin-header h3 {
     color: white;
 }
+
+/* Plugin Account List */
+.plugin-accounts {
+    margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.plugin-account-list {
+    margin-top: 10px;
+}
+
+.plugin-account-list .account-item {
+    background-color: rgba(245, 245, 245, 0.7);
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.plugin-account-list .account-avatar {
+    width: 36px;
+    height: 36px;
+}
+
+.plugin-account-list .account-details {
+    font-size: 0.9em;
+}
+
+.plugin-account-list .account-actions .button {
+    padding: 5px 10px;
+    font-size: 12px;
+}

@@ -12,49 +12,40 @@
 {% endmacro %}
 
 {% macro account_management(twitter_accounts) %}
-<div class="dashboard-section">
-    <h2>Your Twitter Accounts</h2>
-    {% if twitter_accounts and twitter_accounts|length > 0 %}
-        <ul class="account-list">
-            {% for account in twitter_accounts %}
-                <li class="account-item">
-                    <div class="account-info">
-                        {% if account.profile_image_url %}
-                        <div class="account-avatar">
-                            <img src="{{ account.profile_image_url }}" alt="{{ account.username or 'Twitter User' }}" class="avatar">
+{% if twitter_accounts and twitter_accounts|length > 0 %}
+    <ul class="account-list plugin-account-list">
+        {% for account in twitter_accounts %}
+            <li class="account-item">
+                <div class="account-info">
+                    {% if account.profile_image_url %}
+                    <div class="account-avatar">
+                        <img src="{{ account.profile_image_url }}" alt="{{ account.username or 'Twitter User' }}" class="avatar">
+                    </div>
+                    {% endif %}
+                    <div class="account-details">
+                        {% if account.display_name %}
+                        <div class="display-name">{{ account.display_name }}</div>
+                        {% endif %}
+                        
+                        {% if account.username %}
+                        <div class="username">
+                            <a href="https://twitter.com/{{ account.username }}" target="_blank">@{{ account.username }}</a>
                         </div>
                         {% endif %}
-                        <div class="account-details">
-                            {% if account.display_name %}
-                            <div class="display-name">{{ account.display_name }}</div>
-                            {% endif %}
-                            
-                            {% if account.username %}
-                            <div class="username">
-                                <a href="https://twitter.com/{{ account.username }}" target="_blank">@{{ account.username }}</a>
-                            </div>
-                            {% endif %}
-                            
-                            <div class="twitter-id">ID: {{ account.twitter_id }}</div>
-                            <div class="added-date">Added: {{ account.created_at.strftime('%Y-%m-%d') }}</div>
-                        </div>
+                        
+                        <div class="twitter-id">ID: {{ account.twitter_id }}</div>
+                        <div class="added-date">Added: {{ account.created_at.strftime('%Y-%m-%d') }}</div>
                     </div>
-                    <div class="account-actions">
-                        <button class="button delete-button" onclick="deleteTwitterAccount('{{ account.twitter_id }}')">Delete</button>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
-        <div class="button-group mt-3">
-            <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
-        </div>
-    {% else %}
-        <p>No Twitter accounts linked yet.</p>
-        <div class="button-group mt-3">
-            <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
-        </div>
-    {% endif %}
-</div>
+                </div>
+                <div class="account-actions">
+                    <button class="button delete-button" onclick="deleteTwitterAccount('{{ account.twitter_id }}')">Delete</button>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No Twitter accounts linked yet.</p>
+{% endif %}
 
 <script>
 async function deleteTwitterAccount(twitterId) {

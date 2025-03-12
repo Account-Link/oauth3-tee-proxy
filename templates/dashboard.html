@@ -54,6 +54,17 @@
                             </div>
                         {% endif %}
                         
+                        {# Integrated Twitter Accounts Section #}
+                        {% if plugin_name == "twitter" and plugin_info.accounts_html is defined %}
+                            <div class="plugin-accounts">
+                                <h4>Your Accounts {% if plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
+                                {{ plugin_info.accounts_html|safe }}
+                                <div class="button-group mt-3">
+                                    <a href="/twitter/submit-cookie" class="button">Add Twitter Account</a>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
                         {% if plugin_info.urls %}
                             <div class="plugin-actions">
                                 {% for label, url in plugin_info.urls.items() %}

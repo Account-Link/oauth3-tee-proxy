@@ -101,8 +101,12 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             # Get plugin information from plugin manager
             context["available_plugins"] = {}  # Start with empty dict
             try:
-                # Attempt to get dynamic plugin info
-                context["available_plugins"] = plugin_manager.get_plugin_info()
+                # Attempt to get dynamic plugin info with Twitter accounts context
+                plugin_context = {
+                    "twitter_accounts": context["twitter_accounts"]
+                }
+                context["available_plugins"] = plugin_manager.get_plugin_info(context=plugin_context)
+                logger.info(f"Passed {len(context['twitter_accounts'])} Twitter accounts to plugin_info")
             except Exception as e:
                 logger.error(f"Error getting plugin info: {e}")
                 # Fallback to manual plugin info

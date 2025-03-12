@@ -21,18 +21,18 @@ class TwitterUIProvider:
     """Provides UI components for the Twitter plugin."""
     
     @staticmethod
-    def get_plugin_info(request = None):
+    def get_plugin_info(request = None, twitter_accounts = None):
         """
         Get information about the Twitter plugin for display in the UI.
         
         Args:
             request: The HTTP request object (optional)
+            twitter_accounts: List of Twitter accounts to display (optional)
             
         Returns:
             dict: Plugin metadata including description, features, and URLs
         """
-        # This is already returning a dict directly, not using a template, so no change needed
-        return {
+        twitter_info = {
             "description": "Connect to Twitter and interact with its API using OAuth3 TEE Proxy.",
             "features": [
                 "Authenticate using browser cookies or OAuth",
@@ -48,6 +48,16 @@ class TwitterUIProvider:
             "color": "#1DA1F2",
             "icon": "twitter"
         }
+        
+        # If Twitter accounts are provided, include them in the plugin info
+        if twitter_accounts:
+            # Render the account management component and include it
+            template = templates.env.get_template("plugin_info.html")
+            accounts_html = template.module.account_management(twitter_accounts)
+            twitter_info["accounts_html"] = accounts_html
+            twitter_info["account_count"] = len(twitter_accounts)
+        
+        return twitter_info
     
     @staticmethod
     def get_dashboard_component(request: Request, twitter_accounts):
