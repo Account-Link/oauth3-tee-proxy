@@ -9,62 +9,22 @@
 <header class="main-header d-flex justify-content-between align-items-center">
     <h1 class="page-title">{{ self.page_title() }}</h1>
     <div class="header-actions">
-        {{ ui.button('Twitter GraphQL Playground', '/graphql-playground', 'button', 'link', '', 'background-color: #1DA1F2;') }}
+        {% if plugin_actions %}
+            {% for action in plugin_actions %}
+                {{ action|safe }}
+            {% endfor %}
+        {% endif %}
     </div>
 </header>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-section">
-    <h2>Your Twitter Accounts</h2>
-    {% if twitter_accounts %}
-        <ul class="account-list">
-            {% for account in twitter_accounts %}
-                {{ ui.twitter_account_card(account) }}
-            {% endfor %}
-        </ul>
-        <div class="button-group mt-3">
-            {{ ui.button('Add Twitter Account', '/submit-cookie') }}
-        </div>
-    {% else %}
-        <p>No Twitter accounts linked yet.</p>
-        <div class="button-group mt-3">
-            {{ ui.button('Add Twitter Account', '/submit-cookie') }}
-        </div>
-    {% endif %}
-</div>
-
-<div class="dashboard-section">
-    <h2>Your Telegram Account</h2>
-    {% if telegram_accounts %}
-        <ul class="account-list">
-            {% for account in telegram_accounts %}
-                <li class="account-item">
-                    <span>Phone: {{ account.phone_number }}</span>
-                    <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
-                    {{ ui.button('Refresh Channels', '#', 'delete-button', 'button', "refreshChannels('"+account.id+"')", '') }}
-                </li>
-                {% if account.channels %}
-                    <ul class="channel-list">
-                        {% for channel in account.channels %}
-                            <li class="channel-item">
-                                <span>{{ channel.name }}</span>
-                                {% if channel.username %}
-                                    <span>@{{ channel.username }}</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p>No channels found.</p>
-                {% endif %}
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No Telegram account linked yet.</p>
-    {% endif %}
-    {{ ui.button('Add Telegram Account', '/add-telegram') }}
-</div>
+{# Plugin-specific components rendered from the plugin UI providers #}
+{% if plugin_components %}
+    {% for component in plugin_components %}
+        {{ component|safe }}
+    {% endfor %}
+{% endif %}
 
 <div class="dashboard-section">
     <h2>OAuth2 Access Tokens</h2>

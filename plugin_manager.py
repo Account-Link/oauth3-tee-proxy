@@ -41,7 +41,8 @@ import logging
 import os
 from typing import Dict, List, Type, Optional, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 
 from plugins import (
     AuthorizationPlugin,
@@ -88,6 +89,7 @@ class PluginManager:
         """
         self._plugin_dir = os.path.join(os.path.dirname(__file__), "plugins")
         self._loaded_plugins = set()
+        self._plugin_ui_providers = {}
     
     def discover_plugins(self):
         """
@@ -109,9 +111,19 @@ class PluginManager:
                 module_name = f"plugins.{item}"
                 if module_name not in self._loaded_plugins:
                     try:
-                        importlib.import_module(module_name)
+                        module = importlib.import_module(module_name)
                         self._loaded_plugins.add(module_name)
                         logger.info(f"Discovered plugin: {module_name}")
+                        
+                        # Try to load UI provider if available
+                        try:
+                            ui_module = importlib.import_module(f"{module_name}.ui")
+                            if hasattr(ui_module, f"{item}_ui"):
+                                self._plugin_ui_providers[item] = getattr(ui_module, f"{item}_ui")
+                                logger.info(f"Loaded UI provider for plugin: {item}")
+                        except ImportError:
+                            # UI module is optional, so this is not an error
+                            pass
                     except ImportError as e:
                         logger.error(f"Error loading plugin {module_name}: {e}")
     
@@ -328,6 +340,73 @@ class PluginManager:
                 logger.info(f"Found route plugin in resource plugin: {service_name}")
         
         return routers
+        
+    def get_plugin_ui(self, plugin_name: str) -> Optional[Any]:
+        """
+        Get the UI provider for a specific plugin.
+        
+        UI providers allow plugins to contribute UI components to the main application.
+        They typically provide methods to render templates or components for different
+        parts of the UI.
+        
+        Args:
+            plugin_name (str): The name of the plugin
+            
+        Returns:
+            Optional[Any]: The UI provider for the plugin, or None if not found
+            
+        Example:
+            >>> twitter_ui = plugin_manager.get_plugin_ui("twitter")
+            >>> if twitter_ui:
+            ...     dashboard_component = twitter_ui.get_dashboard_component(request, accounts)
+        """
+        return self._plugin_ui_providers.get(plugin_name)
+        
+    def get_all_plugin_uis(self) -> Dict[str, Any]:
+        """
+        Get all registered plugin UI providers.
+        
+        Returns a dictionary mapping plugin names to their UI providers.
+        
+        Returns:
+            Dict[str, Any]: Dictionary of all registered plugin UI providers
+        """
+        return self._plugin_ui_providers.copy()
+        
+    def render_dashboard_components(self, request: Request, context: Dict[str, Any]) -> List[str]:
+        """
+        Render dashboard components from all plugins.
+        
+        This method calls the get_dashboard_component method on all registered
+        UI providers, passing the request and relevant context data, and returns
+        a list of HTML strings for inclusion in the dashboard template.
+        
+        Args:
+            request (Request): The HTTP request
+            context (Dict[str, Any]): The template context data
+            
+        Returns:
+            List[str]: HTML strings for dashboard components
+        """
+        components = []
+        for plugin_name, ui_provider in self._plugin_ui_providers.items():
+            if hasattr(ui_provider, "get_dashboard_component"):
+                try:
+                    # Get plugin-specific context data
+                    plugin_context = {}
+                    if plugin_name == "twitter" and "twitter_accounts" in context:
+                        plugin_context = {"twitter_accounts": context["twitter_accounts"]}
+                    elif plugin_name == "telegram" and "telegram_accounts" in context:
+                        plugin_context = {"telegram_accounts": context["telegram_accounts"]}
+                    
+                    # Render the component
+                    component = ui_provider.get_dashboard_component(request, **plugin_context)
+                    if component:
+                        components.append(component)
+                except Exception as e:
+                    logger.error(f"Error rendering dashboard component for plugin {plugin_name}: {e}")
+        
+        return components
 
 # Create a singleton instance of the plugin manager
 plugin_manager = PluginManager()
