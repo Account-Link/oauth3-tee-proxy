@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 class Settings(BaseSettings):
     # Database
@@ -33,9 +34,19 @@ class Settings(BaseSettings):
     # Plugin System Settings
     PLUGINS_ENABLED: bool = True
     PLUGINS_AUTO_DISCOVER: bool = True
+    
+    # Twitter API Settings
+    TWITTER_CONSUMER_KEY: Optional[str] = None
+    TWITTER_CONSUMER_SECRET: Optional[str] = None
+    TWITTER_OAUTH_CALLBACK_URL: str = "http://localhost:8000/twitter/oauth/callback"
+    
+    # Telegram API Settings
+    TELEGRAM_API_ID: Optional[str] = None
+    TELEGRAM_API_HASH: Optional[str] = None
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Allow extra fields from environment variables
 
 @lru_cache()
 def get_settings():
