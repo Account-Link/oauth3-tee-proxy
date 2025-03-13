@@ -1,224 +1,327 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Dashboard - OAuth3 Twitter Cookie</title>
-        <link rel="stylesheet" href="/static/css/styles.css">
-        <style>
-            /* Additional dashboard-specific styles */
-            .dashboard-section {
-                margin-bottom: 30px;
-                padding: 20px;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-            }
-            .account-list, .token-list {
-                list-style: none;
-                padding: 0;
-            }
-            .account-item, .token-item {
-                padding: 10px;
-                margin: 5px 0;
-                background: #f5f5f5;
-                border-radius: 4px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .token-form {
-                margin-top: 20px;
-            }
-            .token-form input, .token-form select {
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                margin-right: 10px;
-            }
-            .delete-button {
-                background-color: #dc3545;
-            }
-            .delete-button:hover {
-                background-color: #c82333;
-            }
-            .scope-list {
-                margin: 5px 0;
-                font-size: 0.9em;
-                color: #666;
-            }
-            .token-details {
-                flex-grow: 1;
-                margin-right: 20px;
-            }
-            .token-actions {
-                display: flex;
-                gap: 10px;
-            }
-            .copy-button {
-                background-color: #28a745;
-            }
-            .copy-button:hover {
-                background-color: #218838;
-            }
-            .token-expires {
-                font-size: 0.8em;
-                color: #666;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>Welcome, {{ user.username }}</h1>
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
 
-        <div class="dashboard-section">
-            <h2>Your Twitter Accounts</h2>
-            {% if twitter_accounts %}
-                <ul class="account-list">
-                    {% for account in twitter_accounts %}
-                        <li class="account-item">
-                            <span>Twitter ID: {{ account.twitter_id }}</span>
-                            <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No Twitter accounts linked yet.</p>
-            {% endif %}
-            <a href="/submit-cookie" class="button">Add Twitter Account</a>
-        </div>
+{% block title %}Dashboard - OAuth3 TEE Proxy{% endblock %}
 
-        <div class="dashboard-section">
-            <h2>Your Telegram Account</h2>
-            {% if telegram_accounts %}
-                <ul class="account-list">
-                    {% for account in telegram_accounts %}
-                        <li class="account-item">
-                            <span>Phone: {{ account.phone_number }}</span>
-                            <span>Added: {{ account.created_at.strftime('%Y-%m-%d') }}</span>
-                            <button class="button" onclick="refreshChannels('{{ account.id }}')">Refresh Channels</button>
-                        </li>
-                        {% if account.channels %}
-                            <ul class="channel-list">
-                                {% for channel in account.channels %}
-                                    <li class="channel-item">
-                                        <span>{{ channel.name }}</span>
-                                        {% if channel.username %}
-                                            <span>@{{ channel.username }}</span>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+{% block page_title %}Welcome, {{ user.username }}{% endblock %}
+
+{% block header %}
+<header class="main-header d-flex justify-content-between align-items-center">
+    <h1 class="page-title">{{ self.page_title() }}</h1>
+    <div class="header-actions">
+        {% if plugin_actions %}
+            {% for action in plugin_actions %}
+                {{ action|safe }}
+            {% endfor %}
+        {% endif %}
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+{# Available Plugins Section #}
+<div class="dashboard-section">
+    <h2>Available Plugins</h2>
+    {% if available_plugins and available_plugins.items() %}
+        <div class="plugins-grid">
+            {% for plugin_name, plugin_info in available_plugins.items() %}
+                <div class="plugin-card" data-plugin="{{ plugin_name }}">
+                    <div class="plugin-header" 
+                        {% if plugin_info.color %}
+                            style="background-color: {{ plugin_info.color }}; color: white;"
+                        {% elif plugin_name == "twitter" %}
+                            style="background-color: #1DA1F2; color: white;"
+                        {% elif plugin_name == "telegram" %}
+                            style="background-color: #0088cc; color: white;"
+                        {% endif %}>
+                        <h3 style="color: white;">{{ plugin_name|title }} Plugin</h3>
+                    </div>
+                    <div class="plugin-body">
+                        {% if plugin_info.description %}
+                            <p>{{ plugin_info.description }}</p>
                         {% else %}
-                            <p>No channels found.</p>
+                            <p>Provides integration with {{ plugin_name|title }} services.</p>
                         {% endif %}
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No Telegram account linked yet.</p>
-            {% endif %}
-            <a href="/add-telegram" class="button">Add Telegram Account</a>
-        </div>
-
-        <div class="dashboard-section">
-            <h2>OAuth2 Access Tokens</h2>
-            {% if oauth2_tokens %}
-                <ul class="token-list">
-                    {% for token in oauth2_tokens %}
-                        <li class="token-item">
-                            <div class="token-details">
-                                <div class="scope-list">
-                                    <strong>Scopes:</strong> {{ token.scopes }}
-                                </div>
-                                <div class="token-expires">
-                                    Expires: {{ token.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                        
+                        {% if plugin_info.features %}
+                            <div class="plugin-features">
+                                <h4>Features</h4>
+                                <ul>
+                                    {% for feature in plugin_info.features %}
+                                        <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        
+                        {# Integrated Twitter Accounts Section #}
+                        {% if plugin_name == "twitter" %}
+                            <div class="plugin-accounts">
+                                <h4>Your Accounts {% if plugin_info.account_count and plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
+                                
+                                {% if plugin_info.accounts_html is defined %}
+                                    {{ plugin_info.accounts_html|safe }}
+                                {% else %}
+                                    <p>No Twitter accounts linked yet.</p>
+                                {% endif %}
+                                
+                                <div class="button-group mt-3">
+                                    <a href="/twitter/auth/admin" class="button">Add Twitter Account</a>
+                                    {% if plugin_info.account_count and plugin_info.account_count > 0 %}
+                                        <button onclick="deleteAllTwitterAccounts()" class="button delete-button">Delete All</button>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="token-actions">
-                                <button class="button copy-button" onclick="copyToken('{{ token.access_token }}')">Copy Token</button>
-                                <button class="button delete-button" onclick="revokeToken('{{ token.token_id }}')">Revoke</button>
+                        {% endif %}
+                        
+                        {% if plugin_info.urls %}
+                            <div class="plugin-actions">
+                                {% for label, url in plugin_info.urls.items() %}
+                                    <a href="{{ url }}" class="button" {% if label == "Documentation" %}target="_blank"{% endif %}>{{ label }}</a>
+                                {% endfor %}
                             </div>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No active OAuth2 tokens.</p>
-            {% endif %}
-
-            <form class="token-form" onsubmit="createToken(event)">
-                <select id="tokenScopes" multiple required>
-                    {% for scope in available_scopes %}
-                        <option value="{{ scope }}">{{ scope }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="button">Create Token</button>
-            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
         </div>
+    {% else %}
+        <div class="message">No plugins currently available.</div>
+    {% endif %}
+</div>
 
-        <script>
-            async function createToken(event) {
-                event.preventDefault();
-                const scopes = Array.from(document.getElementById('tokenScopes').selectedOptions)
-                    .map(option => option.value)
-                    .join(' ');
-                
+{# We've moved plugin-specific components directly into the plugin cards above #}
+{# This section is no longer needed as all components are now integrated into their respective plugin cards #}
+
+<div class="dashboard-section">
+    <h2>OAuth2 Access Tokens</h2>
+    {% if oauth2_tokens %}
+        <ul class="token-list">
+            {% for token in oauth2_tokens %}
+                {{ ui.oauth_token_card(token) }}
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No active OAuth2 tokens.</p>
+    {% endif %}
+
+    <form class="token-form" onsubmit="createToken(event)">
+        <select id="tokenScopes" multiple required>
+            {% for scope in available_scopes %}
+                <option value="{{ scope }}">{{ scope }}</option>
+            {% endfor %}
+        </select>
+        {{ ui.button('Create Token', '#', '', 'submit') }}
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function createToken(event) {
+        event.preventDefault();
+        const scopes = Array.from(document.getElementById('tokenScopes').selectedOptions)
+            .map(option => option.value)
+            .join(' ');
+        
+        try {
+            const response = await fetch('/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `scopes=${encodeURIComponent(scopes)}`
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to create token');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error creating token');
+        }
+    }
+
+    async function revokeToken(tokenId) {
+        if (!confirm('Are you sure you want to revoke this token?')) return;
+        try {
+            const response = await fetch(`/token/${tokenId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to revoke token');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error revoking token');
+        }
+    }
+
+    function copyToken(token) {
+        navigator.clipboard.writeText(token).then(() => {
+            alert('Token copied to clipboard!');
+        }).catch(err => {
+            console.error('Error copying token:', err);
+            alert('Failed to copy token');
+        });
+    }
+
+    async function refreshChannels(accountId) {
+        try {
+            const response = await fetch('/telegram/channels');
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to refresh channels');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error refreshing channels');
+        }
+    }
+    
+    async function deleteTwitterAccount(twitterId) {
+        if (!confirm('Are you sure you want to delete this Twitter account?')) return;
+        
+        try {
+            // Show loading indicator
+            const accountItem = document.querySelector(`.account-item[data-twitter-id="${twitterId}"]`);
+            if (accountItem) {
+                accountItem.classList.add('deleting');
+            }
+            
+            const response = await fetch(`/twitter/accounts/${twitterId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
                 try {
-                    const response = await fetch('/token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `scopes=${encodeURIComponent(scopes)}`
+                    // Try to parse JSON
+                    const data = await response.json();
+                    if (accountItem) {
+                        // Animate removal
+                        accountItem.style.height = `${accountItem.offsetHeight}px`;
+                        accountItem.style.opacity = '1';
+                        setTimeout(() => {
+                            accountItem.style.height = '0';
+                            accountItem.style.opacity = '0';
+                            accountItem.style.padding = '0';
+                            accountItem.style.margin = '0';
+                            setTimeout(() => {
+                                accountItem.remove();
+                                
+                                // If no accounts left, refresh to update UI
+                                const remainingAccounts = document.querySelectorAll('.plugin-account-list .account-item');
+                                if (remainingAccounts.length === 0) {
+                                    window.location.reload();
+                                }
+                            }, 300);
+                        }, 10);
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (e) {
+                    // If not JSON, likely a redirect response
+                    window.location.href = response.redirected ? response.url : '/dashboard';
+                }
+            } else {
+                // Handle error response
+                let errorMsg = 'Failed to delete Twitter account';
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorMsg;
+                } catch (e) {
+                    // If not JSON
+                    errorMsg = response.statusText || errorMsg;
+                }
+                alert(errorMsg);
+                if (accountItem) {
+                    accountItem.classList.remove('deleting');
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Network error deleting Twitter account');
+            
+            const accountItem = document.querySelector(`.account-item[data-twitter-id="${twitterId}"]`);
+            if (accountItem) {
+                accountItem.classList.remove('deleting');
+            }
+        }
+    }
+    
+    async function deleteAllTwitterAccounts() {
+        if (!confirm('Are you sure you want to delete ALL your Twitter accounts? This action cannot be undone.')) return;
+        
+        // Double confirmation for dangerous action
+        if (!confirm('CAUTION: This will remove all Twitter accounts from your profile. Press OK to continue.')) return;
+        
+        try {
+            // Show loading state
+            const accountItems = document.querySelectorAll('.plugin-account-list .account-item');
+            accountItems.forEach(item => item.classList.add('deleting'));
+            
+            const response = await fetch('/twitter/accounts', {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                try {
+                    // Try to get JSON response
+                    const data = await response.json();
+                    
+                    // Animate removal of all accounts
+                    accountItems.forEach(item => {
+                        item.style.height = `${item.offsetHeight}px`;
+                        item.style.opacity = '1';
+                        setTimeout(() => {
+                            item.style.height = '0';
+                            item.style.opacity = '0';
+                            item.style.padding = '0';
+                            item.style.margin = '0';
+                        }, 10);
                     });
-                    if (response.ok) {
+                    
+                    // Reload after animation
+                    setTimeout(() => {
                         window.location.reload();
-                    } else {
-                        const error = await response.json();
-                        alert(error.detail || 'Failed to create token');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error creating token');
+                    }, 400);
+                    
+                } catch (e) {
+                    // If not JSON, likely a redirect
+                    window.location.href = response.redirected ? response.url : '/dashboard';
                 }
-            }
-
-            async function revokeToken(tokenId) {
-                if (!confirm('Are you sure you want to revoke this token?')) return;
+            } else {
+                // Handle error
+                let errorMsg = 'Failed to delete all Twitter accounts';
                 try {
-                    const response = await fetch(`/token/${tokenId}`, {
-                        method: 'DELETE'
-                    });
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        const error = await response.json();
-                        alert(error.detail || 'Failed to revoke token');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error revoking token');
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorMsg;
+                } catch (e) {
+                    errorMsg = response.statusText || errorMsg;
                 }
+                alert(errorMsg);
+                accountItems.forEach(item => item.classList.remove('deleting'));
             }
-
-            function copyToken(token) {
-                navigator.clipboard.writeText(token).then(() => {
-                    alert('Token copied to clipboard!');
-                }).catch(err => {
-                    console.error('Error copying token:', err);
-                    alert('Failed to copy token');
-                });
-            }
-
-            async function refreshChannels(accountId) {
-                try {
-                    const response = await fetch('/api/telegram/channels');
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        const error = await response.json();
-                        alert(error.detail || 'Failed to refresh channels');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error refreshing channels');
-                }
-            }
-        </script>
-    </body>
-</html> 
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Network error deleting Twitter accounts');
+            
+            const accountItems = document.querySelectorAll('.plugin-account-list .account-item');
+            accountItems.forEach(item => item.classList.remove('deleting'));
+        }
+    }
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 class Settings(BaseSettings):
     # Database
@@ -26,17 +27,26 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-here"  # Change this in production!
 
-    # Telegram Settings
-    TELEGRAM_API_ID: str
-    TELEGRAM_API_HASH: str
-    TELEGRAM_SESSION_PATH: str = "./telegram_sessions"
-
     # OAuth2 Settings
     OAUTH2_TOKEN_EXPIRE_HOURS: int = 24
-    OAUTH2_ALLOWED_SCOPES: str = "telegram.post_any tweet.post"
+    # Note: OAUTH2_ALLOWED_SCOPES is now derived from plugins
+    
+    # Plugin System Settings
+    PLUGINS_ENABLED: bool = True
+    PLUGINS_AUTO_DISCOVER: bool = True
+    
+    # Twitter API Settings
+    TWITTER_CONSUMER_KEY: Optional[str] = None
+    TWITTER_CONSUMER_SECRET: Optional[str] = None
+    TWITTER_OAUTH_CALLBACK_URL: str = "http://localhost:8000/twitter/oauth/callback"
+    
+    # Telegram API Settings
+    TELEGRAM_API_ID: Optional[str] = None
+    TELEGRAM_API_HASH: Optional[str] = None
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Allow extra fields from environment variables
 
 @lru_cache()
 def get_settings():

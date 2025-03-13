@@ -1,0 +1,3 @@
+[submodule "docs/twitter-api"]
+	path = docs/twitter-api
+	url = https://github.com/fa0311/TwitterInternalAPIDocument.git

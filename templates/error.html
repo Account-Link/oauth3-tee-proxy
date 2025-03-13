@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Error - OAuth3 TEE Proxy{% endblock %}
+
+{% block additional_css %}
+<style>
+    .error-container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .error-title {
+        margin-top: 0;
+        color: #721c24;
+    }
+    
+    .error-message {
+        margin: 20px 0;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    .error-buttons {
+        margin-top: 20px;
+        display: flex;
+        gap: 15px;
+    }
+    
+    .button.secondary {
+        background-color: #6c757d;
+    }
+    
+    .button.secondary:hover {
+        background-color: #5a6268;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <h1 class="error-title">Error</h1>
+    <div class="error-message">
+        {{ error_message }}
+    </div>
+    <div class="error-buttons">
+        {{ ui.button('Go Back', back_url, 'secondary') }}
+        {{ ui.button('Dashboard', '/dashboard') }}
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

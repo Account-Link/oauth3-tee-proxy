@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Twitter GraphQL Playground - OAuth3 TEE Proxy{% endblock %}
+
+{% block page_title %}Twitter GraphQL Playground{% endblock %}
+
+{% block additional_css %}
+<style>
+    /* GraphQL playground specific styles */
+    .playground-container {
+        margin-bottom: 30px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .query-section {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .query-editor, .variables-editor {
+        flex: 1;
+    }
+
+    .query-editor textarea, .variables-editor textarea {
+        width: 100%;
+        height: 200px;
+        font-family: monospace;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        resize: vertical;
+    }
+
+    .operation-selection {
+        margin-bottom: 20px;
+    }
+
+    .operation-selection select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .result-container {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        min-height: 200px;
+        white-space: pre-wrap;
+        font-family: monospace;
+        overflow-x: auto;
+    }
+
+    .operation-info {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .tab-container {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 20px;
+    }
+
+    .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        border-bottom: none;
+        margin-right: 5px;
+    }
+
+    .tab.active {
+        background-color: #f8f9fa;
+        border-color: #ddd;
+        border-radius: 4px 4px 0 0;
+    }
+
+    .token-selector {
+        margin-bottom: 20px;
+    }
+
+    .token-selector select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    /* Loading spinner */
+    .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #09f;
+        animation: spin 1s ease infinite;
+        display: none;
+        margin: 20px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="playground-container">
+    <div class="token-selector">
+        <label for="accessToken">Select Access Token:</label>
+        <select id="accessToken">
+            {% for token in oauth2_tokens %}
+                <option value="{{ token.access_token }}">{{ token.scopes }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab active" data-tab="predefined">Predefined Queries</div>
+        <div class="tab" data-tab="custom">Custom Query</div>
+    </div>
+
+    <div id="predefined-tab" class="tab-content">
+        <div class="operation-selection">
+            <label for="queryOperation">Select GraphQL Operation:</label>
+            <select id="queryOperation">
+                {% for query_id, info in operations.items() %}
+                    <option value="{{ query_id }}" 
+                            data-method="{{ info.method }}" 
+                            data-category="{{ info.category }}"
+                            data-name="{{ info.operation_name }}">
+                        {{ info.operation_name }} ({{ info.category }})
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="operation-info" id="operationInfo"></div>
+        </div>
+    </div>
+
+    <div id="custom-tab" class="tab-content" style="display: none;">
+        <div class="form-group">
+            <label for="customQueryId">Query ID:</label>
+            <input type="text" id="customQueryId" placeholder="Enter GraphQL query ID">
+        </div>
+        <div class="form-group">
+            <label for="requestMethod">HTTP Method:</label>
+            <select id="requestMethod">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="query-section">
+        <div class="variables-editor">
+            <label for="variablesEditor">Variables (JSON):</label>
+            <textarea id="variablesEditor" placeholder="{&#10;  &quot;userId&quot;: &quot;1234567890&quot;&#10;}"></textarea>
+        </div>
+        <div class="variables-editor">
+            <label for="featuresEditor">Features (JSON):</label>
+            <textarea id="featuresEditor" placeholder="{&#10;  &quot;responsive_web_twitter_blue_verified_badge_is_enabled&quot;: true&#10;}"></textarea>
+        </div>
+    </div>
+
+    <button id="executeButton" class="button">Execute Query</button>
+    <div class="spinner" id="loadingSpinner"></div>
+
+    <div class="result-container" id="resultContainer">// Results will appear here</div>
+</div>
+
+<div class="playground-container">
+    <h2>Example Queries</h2>
+    <div class="example-queries">
+        <h3>User By Screen Name</h3>
+        <pre>{
+  "variables": {
+    "screen_name": "elonmusk",
+    "withSafetyModeUserFields": true
+  }
+}</pre>
+
+        <h3>User Tweets</h3>
+        <pre>{
+  "variables": {
+    "userId": "44196397",
+    "count": 20,
+    "includePromotedContent": false
+  }
+}</pre>
+
+        <h3>Search Timeline</h3>
+        <pre>{
+  "variables": {
+    "rawQuery": "ethereum",
+    "count": 20,
+    "product": "Top"
+  }
+}</pre>
+    </div>
+</div>
+
+<div class="button-group">
+    {{ ui.button('Back to Dashboard', '/dashboard') }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Get DOM elements
+    const queryOperationSelect = document.getElementById('queryOperation');
+    const operationInfoDiv = document.getElementById('operationInfo');
+    const variablesEditor = document.getElementById('variablesEditor');
+    const featuresEditor = document.getElementById('featuresEditor');
+    const executeButton = document.getElementById('executeButton');
+    const resultContainer = document.getElementById('resultContainer');
+    const accessTokenSelect = document.getElementById('accessToken');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const tabs = document.querySelectorAll('.tab');
+    const customQueryId = document.getElementById('customQueryId');
+    const requestMethod = document.getElementById('requestMethod');
+
+    // Handle tab switching
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            tab.classList.add('active');
+            
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Show content for active tab
+            const tabName = tab.getAttribute('data-tab');
+            document.getElementById(`${tabName}-tab`).style.display = 'block';
+        });
+    });
+
+    // Update operation info when selected
+    queryOperationSelect.addEventListener('change', updateOperationInfo);
+    
+    function updateOperationInfo() {
+        const selectedOption = queryOperationSelect.options[queryOperationSelect.selectedIndex];
+        const method = selectedOption.getAttribute('data-method');
+        const category = selectedOption.getAttribute('data-category');
+        const name = selectedOption.getAttribute('data-name');
+        
+        operationInfoDiv.textContent = `${name}: ${method} operation, Category: ${category}`;
+    }
+    
+    // Initialize with current selection
+    updateOperationInfo();
+
+    // Execute the GraphQL query
+    executeButton.addEventListener('click', async () => {
+        try {
+            // Show loading spinner
+            loadingSpinner.style.display = 'block';
+            resultContainer.textContent = 'Loading...';
+            
+            // Get the access token
+            const accessToken = accessTokenSelect.value;
+            if (!accessToken) {
+                throw new Error('No access token available. Please create one on the dashboard.');
+            }
+            
+            let queryId, method;
+            
+            // Determine if using predefined or custom query
+            const isUsingPredefined = document.querySelector('.tab.active').getAttribute('data-tab') === 'predefined';
+            
+            if (isUsingPredefined) {
+                queryId = queryOperationSelect.value;
+                const selectedOption = queryOperationSelect.options[queryOperationSelect.selectedIndex];
+                method = selectedOption.getAttribute('data-method');
+            } else {
+                queryId = customQueryId.value.trim();
+                if (!queryId) {
+                    throw new Error('Please enter a query ID');
+                }
+                method = requestMethod.value;
+            }
+
+            // Parse variables and features
+            let variables = null;
+            let features = null;
+            
+            try {
+                if (variablesEditor.value.trim()) {
+                    variables = JSON.parse(variablesEditor.value);
+                }
+            } catch (e) {
+                throw new Error('Invalid JSON in variables editor');
+            }
+            
+            try {
+                if (featuresEditor.value.trim()) {
+                    features = JSON.parse(featuresEditor.value);
+                }
+            } catch (e) {
+                throw new Error('Invalid JSON in features editor');
+            }
+
+            // Execute the query
+            let response;
+            if (method === 'GET') {
+                // For GET requests, convert JSON to query parameters
+                const params = new URLSearchParams();
+                if (variables) {
+                    params.append('variables', JSON.stringify(variables));
+                }
+                if (features) {
+                    params.append('features', JSON.stringify(features));
+                }
+                
+                const queryString = params.toString() ? `?${params.toString()}` : '';
+                response = await fetch(`/twitter/graphql/${queryId}${queryString}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+            } else {
+                // For POST requests, send JSON in request body
+                const body = {};
+                if (variables) body.variables = variables;
+                if (features) body.features = features;
+                
+                response = await fetch(`/twitter/graphql/${queryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+            }
+
+            const result = await response.json();
+            
+            // Display the result
+            resultContainer.textContent = JSON.stringify(result, null, 2);
+            
+        } catch (error) {
+            resultContainer.textContent = `Error: ${error.message}`;
+            console.error('Error executing query:', error);
+        } finally {
+            // Hide loading spinner
+            loadingSpinner.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}

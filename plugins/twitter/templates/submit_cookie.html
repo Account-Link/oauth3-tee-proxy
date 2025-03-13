@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Submit Twitter Cookie - OAuth3 TEE Proxy{% endblock %}
+
+{% block page_title %}Submit Twitter Cookie{% endblock %}
+
+{% block content %}
+<div class="instructions">
+    <h2>How to get your Twitter cookie</h2>
+    
+    <div class="steps">
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                Log in to <a href="https://twitter.com" target="_blank">Twitter</a> in your browser
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                Open your browser's Developer Tools:
+                <ul>
+                    <li>Chrome/Edge: Press F12 or right-click anywhere and select "Inspect"</li>
+                    <li>Firefox: Press F12 or right-click and select "Inspect Element"</li>
+                    <li>Safari: First enable Developer Tools in Safari Preferences > Advanced, then press Command+Option+I</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                Navigate to the Storage/Application section:
+                <ul>
+                    <li>Chrome/Edge: Click on the "Application" tab</li>
+                    <li>Firefox: Click on the "Storage" tab</li>
+                    <li>Safari: Click on the "Storage" tab</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                Find and expand the "Cookies" section, then click on "https://twitter.com"
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content">
+                Find the cookie named <code>auth_token</code> in the list and copy its value
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">6</div>
+            <div class="step-content">
+                <strong>Important:</strong> Enter the auth_token value below. You can paste it in any of these formats:
+                <ul style="margin-top: 8px;">
+                    <li>Just the auth_token value: <div class="example">a1b2c3d4...</div></li>
+                    <li>With the key name: <div class="example">auth_token=a1b2c3d4...</div></li>
+                </ul>
+                where <code>a1b2c3d4...</code> is the value of the auth_token cookie you copied.
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">7</div>
+            <div class="step-content">
+                Paste the formatted cookie in the text box below
+            </div>
+        </div>
+    </div>
+    
+    <div class="note">
+        <p class="important">Security note:</p>
+        <p>Your Twitter cookie is sensitive information. This proxy will store this cookie in a secure environment to access Twitter on your behalf. The cookie is only used to make authorized API calls to Twitter.</p>
+    </div>
+</div>
+
+<div id="cookie-form" class="cookie-form">
+    {{ ui.textarea(
+        name="twitter_cookie",
+        id="twitter_cookie",
+        label="Twitter auth_token Cookie:",
+        placeholder="Paste your auth_token value here (with or without the 'auth_token=' prefix)",
+        required=true,
+        rows=6
+    ) }}
+    <div class="note">Examples: <code>a1b2c3d4...</code> or <code>auth_token=a1b2c3d4...</code> (the value will be much longer)</div>
+    
+    <div id="submitStatus" class="status" style="display: none;"></div>
+    
+    <div class="button-group mt-3">
+        <button onclick="submitCookie()" class="button" type="button">Submit Cookie</button>
+        <a href="/dashboard" class="button" style="background-color: #6c757d;">Back to Dashboard</a>
+    </div>
+</div>
+
+<script>
+    async function submitCookie() {
+        // Get the cookie value
+        const cookieValue = document.getElementById('twitter_cookie').value.trim();
+        
+        if (!cookieValue) {
+            showStatus('Please enter a Twitter cookie.', 'error');
+            return;
+        }
+        
+        // Show loading state
+        showStatus('Submitting cookie...', 'status');
+        
+        try {
+            // Submit via API
+            const response = await fetch('/twitter/auth/cookies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cookie: cookieValue
+                })
+            });
+            
+            // Parse the response
+            if (response.ok) {
+                try {
+                    const data = await response.json();
+                    console.log('Server response:', data);
+                    
+                    if (data.account && data.account.username) {
+                        showStatus(`Successfully linked Twitter account: @${data.account.username}`, 'success');
+                    } else {
+                        showStatus('Successfully linked Twitter account!', 'success');
+                    }
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } catch (e) {
+                    console.error('Error parsing JSON response:', e);
+                    showStatus('Successfully linked Twitter account!', 'success');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                }
+            } else {
+                // Handle error response
+                let errorMsg = 'Failed to submit cookie.';
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorMsg;
+                } catch (e) {
+                    // If we can't parse the JSON, use the status text
+                    errorMsg = response.statusText || errorMsg;
+                }
+                showStatus(errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('Error submitting cookie:', error);
+            showStatus('Network error. Please try again.', 'error');
+        }
+    }
+    
+    function showStatus(message, type) {
+        const statusElement = document.getElementById('submitStatus');
+        statusElement.textContent = message;
+        statusElement.className = 'status';
+        statusElement.classList.add(type);
+        statusElement.style.display = 'block';
+    }
+</script>
+{% endblock %}
