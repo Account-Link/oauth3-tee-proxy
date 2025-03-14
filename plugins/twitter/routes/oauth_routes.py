@@ -145,6 +145,11 @@ class TwitterOAuthRoutes(RoutePlugin):
             db: Session = Depends(get_db)
         ):
             """
+            This endpoint is called by Twitter after a user authorizes (or denies) our app.
+            IT SHOULD NOT REQUIRE AUTHENTICATION because it's part of the OAuth flow.
+            The user is not yet authenticated with our system at this point.
+            """
+            """
             Handle Twitter OAuth callback.
             
             This endpoint processes the callback from Twitter after the user
@@ -200,16 +205,52 @@ class TwitterOAuthRoutes(RoutePlugin):
                 auth_flow = request.session.get("twitter_auth_flow", "login")
                 next_url = request.session.get("twitter_auth_next", "/dashboard")
                 
+                # Debug session state
+                logger.info(f"OAuth Callback: Session keys: {list(request.session.keys())}")
+                logger.info(f"OAuth Callback: Auth flow: {auth_flow}")
+                logger.info(f"OAuth Callback: Next URL: {next_url}")
+                logger.info(f"OAuth Callback: Request token: {request_token is not None}")
+                
                 # Check if Twitter account exists
                 twitter_account = db.query(TwitterAccount).filter(
                     TwitterAccount.twitter_id == twitter_id
                 ).first()
                 
+                # Handle authentication for link flow
+                user_id = None  # We'll determine user_id based on flow type
+
+                # Try all authentication methods
+                # 1. Session authentication
+                session_user_id = request.session.get("user_id")
+                logger.info(f"OAuth Callback: Session user_id: {session_user_id}")
+                
+                # 2. JWT authentication through state
+                user_from_jwt = getattr(request.state, "user", None)
+                logger.info(f"OAuth Callback: JWT user from state: {user_from_jwt is not None}")
+                
+                # 3. JWT authentication through cookie
+                from auth.jwt_service import validate_token
+                access_token = request.cookies.get("access_token")
+                jwt_user_id = None
+                if access_token:
+                    logger.info(f"OAuth Callback: Found access_token cookie")
+                    try:
+                        token_data = validate_token(access_token, db, request)
+                        if token_data and token_data.get("user"):
+                            jwt_user_id = token_data["user"].id
+                            logger.info(f"OAuth Callback: JWT user from cookie: {jwt_user_id}")
+                    except Exception as e:
+                        logger.error(f"OAuth Callback: Error validating access_token: {str(e)}")
+                
                 # Handle existing account
                 if twitter_account:
                     if auth_flow == "login" and twitter_account.can_login:
+                        # We're logging in with Twitter, so we'll use the Twitter account's user_id
+                        user_id = twitter_account.user_id
+                        logger.info(f"OAuth Callback: Login flow using Twitter account user_id: {user_id}")
+                        
                         # Set session for this user
-                        request.session["user_id"] = twitter_account.user_id
+                        request.session["user_id"] = user_id
                         
                         # Update or create OAuth credentials
                         oauth_cred = db.query(TwitterOAuthCredential).filter(
@@ -236,23 +277,16 @@ class TwitterOAuthRoutes(RoutePlugin):
                         
                         db.commit()
                     elif auth_flow == "link":
-                        # Linking to existing user
-                        user_id = request.session.get("user_id")
-                        logger.debug(f"Link flow 1 - Session user_id: {user_id}")
+                        # For linking, we need to use the currently authenticated user
+                        # Try all authentication methods to find user_id
+                        user_id = session_user_id or (user_from_jwt.id if user_from_jwt else None) or jwt_user_id
                         
-                        # Also try to get user from JWT
-                        user_from_jwt = getattr(request.state, "user", None)
-                        logger.debug(f"Link flow 1 - JWT user: {user_from_jwt is not None}")
-                        if user_from_jwt:
-                            user_id = user_from_jwt.id
-                            logger.debug(f"Link flow 1 - Using JWT user_id: {user_id}")
+                        logger.info(f"OAuth Callback: Link flow using user_id: {user_id}")
                             
                         if not user_id:
-                            logger.error("Link flow 1 - No authenticated user found!")
-                            raise HTTPException(
-                                status_code=401,
-                                detail="Not authenticated"
-                            )
+                            logger.error("OAuth Callback: No authenticated user found for linking!")
+                            # Instead of failing, redirect to login with a message
+                            return RedirectResponse(url="/auth/login?error=Please+log+in+to+link+your+Twitter+account", status_code=303)
                         
                         # Check if this Twitter account is already linked to a different user
                         if twitter_account.user_id and twitter_account.user_id != user_id:
@@ -454,6 +488,15 @@ class TwitterOAuthRoutes(RoutePlugin):
                 # Store request token and flow type in session
                 request.session["twitter_request_token"] = request_token
                 request.session["twitter_auth_flow"] = "link"  # This is a link flow
+                
+                # Debug information about authentication state
+                logger.info(f"OAuth Link: Current session keys: {list(request.session.keys())}")
+                logger.info(f"OAuth Link: Storing user_id in session: {user_id}")
+                
+                # Make sure user_id is in the session to maintain authentication through the callback
+                if user_id and "user_id" not in request.session:
+                    request.session["user_id"] = user_id
+                    logger.info(f"OAuth Link: Added user_id to session: {user_id}")
                 
                 # Store next URL if provided
                 if next:
