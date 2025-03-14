@@ -42,63 +42,6 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-# API Endpoints
-
-## Web Interface
-- `GET /` - Web interface for submitting Twitter cookie
-- `GET /dashboard` - Manage OAuth2 tokens
-
-## API Endpoints
-
-### OAuth2 Endpoints
-- `POST /token` - Create new OAuth2 token (requires session authentication)
-  - Parameters:
-    - `scopes` (form field): Space-separated list of requested scopes (e.g. "tweet.post telegram.post_any")
-
-### Cookie Management
-- `POST /api/cookie` - Submit Twitter cookie
-
-### Protected Endpoints
-- `POST /api/tweet` - Post tweet (requires OAuth2 token)
-
-# Example Usage
-
-## Submit Twitter Cookie
-```bash
-curl -X POST http://localhost:8000/api/cookie \
-  -H "Content-Type: application/json" \
-  -d '{"twitter_cookie": "your_twitter_cookie_string"}'
-```
-
-## OAuth2 Token Management
-
-### Create OAuth2 Token
-```bash
-curl -X POST http://localhost:8000/token \
-  -H "Cookie: oauth3_session=your_session_cookie" \
-  -d "scopes=tweet.post"
-```
-
-Response:
-```json
-{
-  "access_token": "your_access_token",
-  "token_type": "bearer",
-  "scope": "tweet.post",
-  "expires_in": 86400
-}
-```
-
-### Post Tweet with OAuth2
-```bash
-curl -X POST http://localhost:8000/api/tweet \
-  -H "Authorization: Bearer your_access_token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "Hello, World!"
-  }'
-```
-
 # OAuth2 Scopes
 
 The following scopes are available:
