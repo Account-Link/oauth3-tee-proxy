@@ -121,6 +121,10 @@ logger.info(f"AVAILABLE AUTH PLUGINS: {list(get_all_authorization_plugins().keys
 logger.info(f"AVAILABLE RESOURCE PLUGINS: {list(get_all_resource_plugins().keys())}")
 logger.info(f"AVAILABLE ROUTE PLUGINS: {list(get_all_route_plugin_classes().keys())}")
 
+# Get auth requirements for debugging
+auth_reqs = plugin_manager.get_auth_requirements()
+logger.info(f"AUTH REQUIREMENTS: {auth_reqs}")
+
 # Get plugin scopes and update API router
 plugin_scopes = plugin_manager.get_all_plugin_scopes()
 update_available_scopes(plugin_scopes)

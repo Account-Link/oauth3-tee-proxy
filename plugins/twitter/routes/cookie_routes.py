@@ -63,8 +63,22 @@ def create_cookie_auth_router() -> APIRouter:
             400: Invalid cookie
             401: Authentication required
         """
-        # Check authentication
-        if not request.session.get("user_id"):
+        # Check authentication using state middleware
+        user_id = None
+        
+        # First try to get user from request.state (JWT middleware)
+        if hasattr(request.state, "user") and request.state.user:
+            user_id = request.state.user.id
+            logger.debug(f"Using state.user authentication, user_id: {user_id}")
+        
+        # If not authenticated via state, try session
+        if not user_id and request.session.get("user_id"):
+            user_id = request.session.get("user_id")
+            logger.debug(f"Using session authentication, user_id: {user_id}")
+            
+        # If still no user, return auth error
+        if not user_id:
+            logger.warning("Authentication required for cookie submission")
             return handle_error(
                 "Authentication required. Please log in first.",
                 status.HTTP_401_UNAUTHORIZED
@@ -116,7 +130,7 @@ def create_cookie_auth_router() -> APIRouter:
                 TwitterAccount.twitter_id == twitter_id
             ).first()
             
-            if existing_account and existing_account.user_id and existing_account.user_id != request.session.get("user_id"):
+            if existing_account and existing_account.user_id and existing_account.user_id != user_id:
                 return handle_error(
                     "Twitter account already linked to another user",
                     status.HTTP_400_BAD_REQUEST
@@ -131,10 +145,10 @@ def create_cookie_auth_router() -> APIRouter:
                 
             # Update or create account
             username, display_name, profile_image_url = await twitter_auth.update_or_create_account(
-                db, twitter_id, cookie_string, request.session.get("user_id"), profile_info
+                db, twitter_id, cookie_string, user_id, profile_info
             )
             
-            logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
+            logger.info(f"Successfully linked Twitter account {twitter_id} to user {user_id}")
             
             # Return successful JSON response
             return JSONResponse(

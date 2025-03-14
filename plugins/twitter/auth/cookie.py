@@ -75,9 +75,9 @@ class TwitterCookieAuthorizationPlugin(TwitterBaseAuthorizationPlugin):
         Get the unique identifier for this authorization plugin.
         
         Returns:
-            str: The plugin ID ("twitter-cookie")
+            str: The plugin ID ("twitter_cookie")
         """
-        return "twitter-cookie"
+        return "twitter_cookie"
     
     def get_display_name(self) -> str:
         """
