@@ -352,7 +352,30 @@ class PasskeyService:
             options_json = options_to_json(options)
             # Log the response for debugging
             logger.info(f"Authentication options JSON: {options_json[:100]}...")
-            return options_json
+            
+            # Convert result to dict for inspection and potential modification
+            try:
+                import json
+                options_dict = json.loads(options_json)
+                
+                # Log for debugging
+                logger.info(f"Challenge: {options_dict.get('challenge', 'MISSING')}")
+                logger.info(f"RP ID: {options_dict.get('rpId', 'MISSING')}")
+                logger.info(f"Allow Credentials: {len(options_dict.get('allowCredentials', []))} items")
+                
+                # Ensure client properties are correctly set for your client
+                if 'allowCredentials' in options_dict:
+                    for cred in options_dict['allowCredentials']:
+                        # Ensure type is correctly set
+                        if 'type' not in cred:
+                            cred['type'] = 'public-key'
+                
+                # Return the potentially modified dict as JSON
+                return json.dumps(options_dict)
+            except Exception as json_error:
+                logger.error(f"Error inspecting options dict: {str(json_error)}")
+                # Fall back to the original JSON
+                return options_json
         except Exception as e:
             logger.error(f"Error converting options to JSON: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to generate authentication options")

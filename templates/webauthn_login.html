@@ -56,18 +56,29 @@
                 throw new Error(errorData.detail || 'Failed to get authentication options');
             }
 
-            // Parse options carefully
-            let optionsText = await optionsResponse.text();
-            console.log("Raw options response:", optionsText);
-            
             let options;
             try {
+                // The response is already a JSON string from the server
+                // We need to handle it as text and then parse it
+                const optionsText = await optionsResponse.text();
+                console.log("Raw options response:", optionsText);
                 options = JSON.parse(optionsText);
+                console.log("Parsed authentication options:", options);
+                
+                // Validate we have required fields
+                if (!options.challenge) {
+                    console.error("Missing challenge in options");
+                    throw new Error("Authentication challenge is missing in server response");
+                }
+                
+                if (!options.allowCredentials || !Array.isArray(options.allowCredentials) || options.allowCredentials.length === 0) {
+                    console.error("Missing or invalid allowCredentials in options");
+                    throw new Error("No valid credentials found for this user");
+                }
             } catch (parseError) {
                 console.error("Error parsing options:", parseError);
-                throw new Error("Failed to parse authentication options");
+                throw new Error("Failed to parse authentication options: " + parseError.message);
             }
-            console.log("Received authentication options:", options);
             statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Verifying passkey...';
             
             // Convert base64url strings to ArrayBuffer
@@ -93,49 +104,66 @@
                 console.log("No allowCredentials in options");
             }
 
-            // Get credentials
-            const credential = await navigator.credentials.get({
-                publicKey: options
-            });
-
-            // Convert ArrayBuffer to base64url for sending to server
-            const credentialResponse = {
-                credential: {
-                    id: credential.id,
-                    rawId: base64urlEncode(credential.rawId),
-                    response: {
-                        authenticatorData: base64urlEncode(credential.response.authenticatorData),
-                        clientDataJSON: base64urlEncode(credential.response.clientDataJSON),
-                        signature: base64urlEncode(credential.response.signature),
-                        userHandle: credential.response.userHandle ? base64urlEncode(credential.response.userHandle) : null,
-                    },
-                    type: credential.type
-                },
-                client_data: base64urlEncode(credential.response.clientDataJSON)
-            };
-
-            console.log("Sending credential response:", credentialResponse);
-
-            // Send response to server
-            const verificationResponse = await fetch('/auth/login/complete', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(credentialResponse)
-            });
-
-            if (!verificationResponse.ok) {
-                const errorData = await verificationResponse.json();
-                throw new Error(errorData.detail || 'Failed to verify authentication');
-            }
-
-            const result = await verificationResponse.json();
-            statusElement.innerHTML = '<div class="alert alert-success">Login successful! Redirecting to dashboard...</div>';
+            // Verify options has the right structure for WebAuthn
+            console.log("About to call navigator.credentials.get with options:", options);
             
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 1500);
+            // Remove any unexpected properties that might cause issues
+            const publicKeyOptions = {
+                challenge: options.challenge,
+                rpId: options.rpId,
+                timeout: options.timeout || 60000,
+                allowCredentials: options.allowCredentials,
+                userVerification: options.userVerification || 'preferred'
+            };
+            
+            console.log("Final publicKey options:", publicKeyOptions);
+            
+            // Get credentials
+            try {
+                console.log("Calling navigator.credentials.get...");
+                const credential = await navigator.credentials.get({
+                    publicKey: publicKeyOptions
+                });
+                console.log("Got credential response:", credential);
+
+                // Convert ArrayBuffer to base64url for sending to server
+                const credentialResponse = {
+                    credential: {
+                        id: credential.id,
+                        rawId: base64urlEncode(credential.rawId),
+                        response: {
+                            authenticatorData: base64urlEncode(credential.response.authenticatorData),
+                            clientDataJSON: base64urlEncode(credential.response.clientDataJSON),
+                            signature: base64urlEncode(credential.response.signature),
+                            userHandle: credential.response.userHandle ? base64urlEncode(credential.response.userHandle) : null,
+                        },
+                        type: credential.type
+                    },
+                    client_data: base64urlEncode(credential.response.clientDataJSON)
+                };
+
+                console.log("Sending credential response:", credentialResponse);
+
+                // Send response to server
+                const verificationResponse = await fetch('/auth/login/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentialResponse)
+                });
+
+                if (!verificationResponse.ok) {
+                    const errorData = await verificationResponse.json();
+                    throw new Error(errorData.detail || 'Failed to verify authentication');
+                }
+
+                const result = await verificationResponse.json();
+                statusElement.innerHTML = '<div class="alert alert-success">Login successful! Redirecting to dashboard...</div>';
+                
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
         } catch (error) {
             console.error('Authentication error:', error);
             document.getElementById('login-status').innerHTML = 
