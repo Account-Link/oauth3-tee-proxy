@@ -529,8 +529,12 @@ def requires_auth(auth_types: Union[AuthType, List[AuthType]] = AuthType.ANY):
         # Store authentication requirements in function metadata
         setattr(func, "auth_types", auth_types)
         
+        # Copy original function signature
+        from functools import wraps
+        
         # Check if function is a coroutine function
         if inspect.iscoroutinefunction(func):
+            @wraps(func)
             async def wrapper(*args, **kwargs):
                 # Extract request from args or kwargs
                 request = None
@@ -556,6 +560,7 @@ def requires_auth(auth_types: Union[AuthType, List[AuthType]] = AuthType.ANY):
                 # Proceed with the function
                 return await func(*args, **kwargs)
         else:
+            @wraps(func)
             def wrapper(*args, **kwargs):
                 # Extract request from args or kwargs
                 request = None

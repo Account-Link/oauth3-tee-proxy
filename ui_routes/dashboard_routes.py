@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 # Local imports
 from database import get_db
-from middleware import AuthContext, AuthType, get_auth_context, requires_auth
 from models import User, OAuth2Token
 from plugins.twitter.models import TwitterAccount
 from plugins.telegram.models import TelegramAccount, TelegramChannel
@@ -26,10 +25,8 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter(tags=["UI:Dashboard"])
 
 @router.get("/dashboard", response_class=HTMLResponse)
-@requires_auth(AuthType.SESSION)
 async def dashboard(
     request: Request, 
-    auth: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db)
 ):
     """
@@ -44,15 +41,14 @@ async def dashboard(
     Authentication is handled by the AuthMiddleware - this route requires session auth.
     """
     try:
-        # Authentication is already validated by middleware and @requires_auth decorator
-        # We can safely access the user from the auth context
-        user = auth.user
+        # Authentication is validated by the auth middleware
+        # We can safely access the user from the request state
+        user = request.state.user
         
         # Create the base context
         context = {
             "request": request,
             "user": user,
-            "auth": auth,  # Pass auth context to templates
             "twitter_accounts": [],
             "telegram_accounts": [],
             "oauth2_tokens": [],
