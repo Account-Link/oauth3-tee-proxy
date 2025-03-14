@@ -60,23 +60,13 @@ def create_account_router() -> APIRouter:
             for account in twitter_accounts:
                 logger.info(f"Twitter account {account.twitter_id}: cookie={repr(account.twitter_cookie)}, username={account.username}")
                 
-            # Manually check the cookies to work around SQLAlchemy None translation issues
-            # Connect directly to the database to get raw values
-            import sqlite3
-            db_conn = sqlite3.connect('oauth3.db')
-            cursor = db_conn.cursor()
-            
             # Create a dictionary of account IDs to cookie status for all user's accounts
             account_cookie_status = {}
             for account in twitter_accounts:
-                cursor.execute('SELECT twitter_cookie FROM twitter_accounts WHERE twitter_id = ?', (account.twitter_id,))
-                result = cursor.fetchone()
                 # Consider a cookie present if it's not None and not empty
-                has_cookie = result[0] is not None and result[0] != ''
+                has_cookie = account.twitter_cookie is not None and account.twitter_cookie != ''
                 account_cookie_status[account.twitter_id] = has_cookie
-                logger.info(f"Raw cookie value from DB for {account.twitter_id}: {repr(result[0])}, has_cookie={has_cookie}")
-            
-            db_conn.close()
+                logger.info(f"Cookie value from DB for {account.twitter_id}: {repr(account.twitter_cookie)}, has_cookie={has_cookie}")
                 
             # Get OAuth status for each account
             account_oauth_status = {}
@@ -145,16 +135,8 @@ def create_account_router() -> APIRouter:
                     content={"status": "error", "detail": error_message}
                 )
             
-            # Remove the cookie - use raw SQL to ensure it's properly nulled
+            # Remove the cookie using SQLAlchemy
             logger.info(f"Deleting cookie for {twitter_id}, current value: {repr(twitter_account.twitter_cookie)}")
-            import sqlite3
-            db_conn = sqlite3.connect('oauth3.db')
-            cursor = db_conn.cursor()
-            cursor.execute('UPDATE twitter_accounts SET twitter_cookie = NULL WHERE twitter_id = ?', (twitter_id,))
-            db_conn.commit()
-            db_conn.close()
-            
-            # Also try the SQLAlchemy way
             twitter_account.twitter_cookie = None
             db.commit()
             

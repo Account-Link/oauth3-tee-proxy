@@ -138,7 +138,7 @@ class TwitterRoutes(RoutePlugin):
                 # Get the Twitter resource plugin
                 from plugin_manager import plugin_manager
                 twitter_resource = plugin_manager.create_resource_plugin(
-                    "twitter", twitter_account.twitter_cookie)
+                    "twitter", cookies=twitter_account.twitter_cookie)
                 
                 if not twitter_resource:
                     logger.error("Twitter resource plugin not available")

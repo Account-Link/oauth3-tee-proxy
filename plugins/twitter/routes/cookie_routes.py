@@ -218,16 +218,7 @@ def create_cookie_auth_router() -> APIRouter:
                             status_code=303
                         )
                         
-                # Store the cookie directly in SQLite for consistency
-                import sqlite3
-                db_conn = sqlite3.connect('oauth3.db')
-                cursor = db_conn.cursor()
-                cursor.execute('UPDATE twitter_accounts SET twitter_cookie = ? WHERE twitter_id = ?', 
-                               (cookie_string, existing_account.twitter_id))
-                db_conn.commit()
-                db_conn.close()
-                
-                # Also update via SQLAlchemy
+                # Update via SQLAlchemy
                 existing_account.twitter_cookie = cookie_string
                 existing_account.updated_at = datetime.utcnow()
                 existing_account.user_id = request.session.get("user_id")
@@ -270,15 +261,8 @@ def create_cookie_auth_router() -> APIRouter:
                 )
                 db.add(account)
                 
-                # Also store directly in SQLite for consistency
+                # SQLAlchemy handles the database operation
                 db.flush()  # Get the new ID
-                import sqlite3
-                db_conn = sqlite3.connect('oauth3.db')
-                cursor = db_conn.cursor()
-                cursor.execute('UPDATE twitter_accounts SET twitter_cookie = ? WHERE twitter_id = ?', 
-                               (cookie_string, twitter_id))
-                db_conn.commit()
-                db_conn.close()
             
             db.commit()
             logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
