@@ -113,7 +113,7 @@ async function startWebAuthnLogin(username) {
       throw new Error(errorData.detail || 'Failed to start authentication');
     }
     
-    // Get authentication options
+    // Get authentication options - already in JSON format from server
     const options = await startResponse.json();
     
     // Validate required fields

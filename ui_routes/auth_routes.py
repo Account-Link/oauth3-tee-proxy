@@ -221,24 +221,29 @@ async def start_login(
                 logger.error(f"Error parsing login request body: {str(parse_error)}")
         
         # Start authentication with passkey service
-        options = passkey_service.start_authentication(
+        options_json = passkey_service.start_authentication(
             request=request,
             db=db,
             username=username
         )
+        
+        # Convert string to dict for proper JSON response
+        from fastapi.responses import JSONResponse
+        options_dict = json.loads(options_json)
         
         # For form submissions, return HTML with redirect
         if request.headers.get('content-type', '').startswith('multipart/form-data'):
             return HTMLResponse(f"""
                 <html>
                 <head>
-                    <meta http-equiv="refresh" content="0;url=/auth/login?options={options}">
+                    <meta http-equiv="refresh" content="0;url=/auth/login?options={options_json}">
                 </head>
                 <body>Redirecting...</body>
                 </html>
             """)
             
-        return options
+        # Return as proper JSON response
+        return JSONResponse(content=options_dict)
     except Exception as e:
         logger.error(f"Login start failed: {str(e)}")
         logger.error(f"Login error details:", exc_info=True)
