@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Authorize Application - OAuth3 Twitter Cookie</title>
+        <link rel="stylesheet" href="/static/css/styles.css">
+        <style>
+            .auth-container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .scope-description {
+                padding: 10px;
+                margin: 10px 0;
+                background: #f5f5f5;
+                border-radius: 4px;
+            }
+            .button-container {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 20px;
+            }
+            .approve-button {
+                background-color: #28a745;
+            }
+            .deny-button {
+                background-color: #dc3545;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="auth-container">
+            <h1>Authorize Application</h1>
+            <p>An application is requesting access to your Twitter account:</p>
+            
+            <div class="scope-description">
+                <h3>Requested Permissions:</h3>
+                {% if scope == "twitter_oauth1.auth" %}
+                    <p>Request authorization to access your Twitter account</p>
+                {% elif scope == "twitter_oauth1.tweet" %}
+                    <p>Post tweets on your behalf</p>
+                {% endif %}
+            </div>
+            
+            <form method="get" action="/oauth/complete">
+                <input type="hidden" name="form_token" value="{{ form_token }}">
+                <input type="hidden" name="request_id" value="{{ request_id }}">
+                <div class="button-container">
+                    <button type="submit" name="authorized" value="true" class="button approve-button">Approve</button>
+                    <button type="submit" name="authorized" value="false" class="button deny-button">Deny</button>
+                </div>
+            </form>
+        </div>
+    </body>
+</html> 

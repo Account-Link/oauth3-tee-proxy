@@ -11,12 +11,14 @@ RUN pip install -r requirements.txt
 ADD main.py ./
 ADD patches.py ./
 ADD twitter_client.py ./
+ADD twitter_oauth.py ./
 ADD models.py ./
 ADD config.py ./
 ADD safety.py ./
 ADD database.py ./
 ADD telegram_client.py ./
 ADD telegram_routes.py ./
+ADD twitter_oauth_routes.py ./
 ADD webauthn_routes.py ./
 ADD oauth2_routes.py ./
 

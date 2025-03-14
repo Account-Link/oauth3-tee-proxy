@@ -3,6 +3,12 @@
     <head>
         <title>OAuth3 Twitter Cookie</title>
         <link rel="stylesheet" href="/static/css/styles.css">
+        <style>
+            .twitter-button {
+                background-color: #1DA1F2;
+                color: white;
+            }
+        </style>
     </head>
     <body>
         <h1>Welcome to OAuth3 Twitter Cookie</h1>
@@ -16,6 +22,11 @@
                 <h2>Login with Passkey</h2>
                 <p>Already have an account? Sign in with your passkey.</p>
                 <a href="/login" class="button">Login with Passkey</a>
+            </div>
+            <div class="auth-option">
+                <h2>Login with Twitter</h2>
+                <p>Sign in using your Twitter account.</p>
+                <a href="/auth/twitter/login" class="button twitter-button">Login with Twitter</a>
             </div>
         </div>
     </body>

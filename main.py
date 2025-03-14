@@ -42,6 +42,8 @@ from oauth2_routes import (
 )
 from safety import SafetyFilter, SafetyLevel
 from twitter_client import TwitterClient
+from twitter_oauth_routes import router as twitter_oauth_router
+from twitter_oauth_routes import OAuth1TweetRequest
 
 # Apply patches
 from patches import apply_patches
@@ -84,6 +86,7 @@ from oauth2_routes import router as oauth2_router
 app.include_router(webauthn_router)
 app.include_router(telegram_router)
 app.include_router(oauth2_router)
+app.include_router(twitter_oauth_router)
 
 # Pydantic models
 class TwitterCookieSubmit(BaseModel):
@@ -266,6 +269,20 @@ async def post_tweet(
     except Exception as e:
         logger.error(f"Error posting tweet for user {token.user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/oauth1/tweet")
+async def oauth1_tweet_passthrough(
+    tweet_data: OAuth1TweetRequest,
+    token: OAuth2Token = Security(verify_token_and_scopes, scopes=["twitter_oauth1.tweet"]),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint for OAuth1-based tweet posting.
+    This is a passthrough to the implementation in twitter_oauth_routes.py.
+    """
+    # Use the implementation from twitter_oauth_routes
+    from twitter_oauth_routes import oauth1_tweet
+    return await oauth1_tweet(tweet_data, token, db)
 
 async def log_failed_tweet(db: Session, user_id: int, tweet_text: str, reason: str):
     """Log a failed tweet attempt."""
