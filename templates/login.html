@@ -146,18 +146,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const responseText = await startResponse.text();
       console.log("Raw response text:", responseText);
       
-      let options;
-      try {
-        options = JSON.parse(responseText);
-        console.log("Parsed options:", options);
-      } catch (parseError) {
-        console.error("Error parsing response as JSON:", parseError);
-        throw new Error("Server response was not valid JSON");
-      }
-      
-      // Prepare options for the browser
-      console.log("About to prepare options:", options);
-      const preparedOptions = WebAuthnHelper.prepareAuthenticationOptions(options);
+      // Pass the raw response text to the WebAuthnHelper
+      // It will handle parsing if needed
+      const preparedOptions = WebAuthnHelper.prepareAuthenticationOptions(responseText);
       
       // Get authentication from browser
       loginMessage.textContent = 'Please follow your browser\'s instructions to authenticate...';

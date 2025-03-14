@@ -85,30 +85,45 @@ function prepareRegistrationOptions(options) {
  */
 function prepareAuthenticationOptions(options) {
   // Log the options for debugging
-  console.log("Preparing authentication options:", JSON.stringify(options));
+  console.log("Preparing authentication options:", typeof options);
+  
+  // Handle string input (parse if needed)
+  let parsedOptions = options;
+  if (typeof options === 'string') {
+    try {
+      console.log("Parsing options string");
+      parsedOptions = JSON.parse(options);
+    } catch (e) {
+      console.error("Failed to parse options string:", e);
+      throw new Error("Failed to parse authentication options");
+    }
+  }
+  
+  // Log the parsed options
+  console.log("Parsed options:", parsedOptions);
   
   // Safety check for undefined options
-  if (!options) {
+  if (!parsedOptions) {
     console.error("prepareAuthenticationOptions received undefined or null options");
     throw new Error("Authentication options were not received properly from the server");
   }
   
   // Ensure we have required fields
-  if (!options.challenge) {
+  if (!parsedOptions.challenge) {
     console.error("Authentication options missing challenge");
     throw new Error("Authentication challenge is missing");
   }
   
-  if (!options.allowCredentials || !Array.isArray(options.allowCredentials) || options.allowCredentials.length === 0) {
+  if (!parsedOptions.allowCredentials || !Array.isArray(parsedOptions.allowCredentials) || parsedOptions.allowCredentials.length === 0) {
     console.error("Authentication options missing allowCredentials");
     throw new Error("No credentials found for this user");
   }
   
   // Create a deep copy to avoid modifying the original
-  const preparedOptions = JSON.parse(JSON.stringify(options));
+  const preparedOptions = JSON.parse(JSON.stringify(parsedOptions));
   
   // Convert challenge to ArrayBuffer
-  preparedOptions.challenge = base64urlToArrayBuffer(options.challenge);
+  preparedOptions.challenge = base64urlToArrayBuffer(parsedOptions.challenge);
   
   // Convert allowed credentials if present
   if (preparedOptions.allowCredentials) {
@@ -125,7 +140,7 @@ function prepareAuthenticationOptions(options) {
     });
   }
   
-  console.log("Prepared authentication options ready");
+  console.log("Prepared authentication options ready:", preparedOptions);
   return preparedOptions;
 }
 
