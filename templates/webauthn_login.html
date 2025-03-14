@@ -1,25 +1,42 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login with Passkey</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <script src="/static/js/webauthn-common.js"></script>
-    <script>
-        // Base64URL decoder helper
-        function base64urlDecode(input) {
-            // Convert base64url to base64
-            input = input.replace(/-/g, '+').replace(/_/g, '/');
-            // Add padding if needed
-            const pad = input.length % 4;
-            if (pad) {
-                input += '='.repeat(4 - pad);
-            }
-            return atob(input);
+{% extends "base.html" %}
+
+{% block title %}Login with Passkey - OAuth3 TEE Proxy{% endblock %}
+{% block page_title %}Login with Passkey{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Base64URL encoder and decoder helpers
+    function base64urlDecode(input) {
+        // Convert base64url to base64
+        input = input.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        const pad = input.length % 4;
+        if (pad) {
+            input += '='.repeat(4 - pad);
         }
-        
-        async function startAuthentication() {
+        return atob(input);
+    }
+    
+    function base64urlEncode(buffer) {
+        // Convert ArrayBuffer to base64
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        // Convert base64 to base64url
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+    
+    async function startAuthentication() {
+        try {
             const username = document.getElementById('username').value;
 
+            if (!username) {
+                alert('Username is required');
+                return;
+            }
+
+            const statusElement = document.getElementById('login-status');
+            statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Initializing authentication...';
+            statusElement.classList.remove('d-none');
+            
             // Get authentication options from server
             const optionsResponse = await fetch('/webauthn/login/begin', {
                 method: 'POST',
@@ -32,10 +49,12 @@
             });
 
             if (!optionsResponse.ok) {
-                throw new Error('Failed to get authentication options');
+                const error = await optionsResponse.json();
+                throw new Error(error.detail || 'Failed to get authentication options');
             }
 
-            const options = JSON.parse(await optionsResponse.json());
+            const options = await optionsResponse.json();
+            statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Verifying passkey...';
             
             // Convert base64url strings to ArrayBuffer
             options.challenge = Uint8Array.from(base64urlDecode(options.challenge), c => c.charCodeAt(0));
@@ -56,17 +75,19 @@
             const credentialResponse = {
                 credential: {
                     id: credential.id,
-                    rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+                    rawId: base64urlEncode(credential.rawId),
                     response: {
-                        authenticatorData: btoa(String.fromCharCode(...new Uint8Array(credential.response.authenticatorData))),
-                        clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
-                        signature: btoa(String.fromCharCode(...new Uint8Array(credential.response.signature))),
-                        userHandle: credential.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(credential.response.userHandle))) : null,
+                        authenticatorData: base64urlEncode(credential.response.authenticatorData),
+                        clientDataJSON: base64urlEncode(credential.response.clientDataJSON),
+                        signature: base64urlEncode(credential.response.signature),
+                        userHandle: credential.response.userHandle ? base64urlEncode(credential.response.userHandle) : null,
                     },
                     type: credential.type
                 },
-                client_data: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
+                client_data: base64urlEncode(credential.response.clientDataJSON)
             };
+
+            console.log("Sending credential response:", credentialResponse);
 
             // Send response to server
             const verificationResponse = await fetch('/webauthn/login/complete', {
@@ -78,21 +99,51 @@
             });
 
             if (!verificationResponse.ok) {
-                throw new Error('Failed to verify authentication');
+                const errorData = await verificationResponse.json();
+                throw new Error(errorData.detail || 'Failed to verify authentication');
             }
 
             const result = await verificationResponse.json();
-            alert('Login successful!');
-            window.location.href = '/dashboard';
+            statusElement.innerHTML = '<div class="alert alert-success">Login successful! Redirecting to dashboard...</div>';
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1500);
+        } catch (error) {
+            console.error('Authentication error:', error);
+            document.getElementById('login-status').innerHTML = 
+                `<div class="alert alert-danger">Login failed: ${error.message}</div>`;
         }
-    </script>
-</head>
-<body>
-    <h1>Login with Passkey</h1>
-    <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" required>
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Login with Passkey</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label required" for="username">Username</label>
+                    <input type="text" class="form-control" id="username" placeholder="Enter your username" required>
+                </div>
+                <div id="login-status" class="mb-3 d-none"></div>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="/auth/register" class="btn btn-link">Don't have an account? Register</a>
+                <button class="btn btn-primary" onclick="startAuthentication()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-login" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                        <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"></path>
+                        <path d="M20 12h-13l3 -3m0 6l-3 -3"></path>
+                    </svg>
+                    Login
+                </button>
+            </div>
+        </div>
     </div>
-    <button class="button" onclick="startAuthentication()">Login</button>
-</body>
-</html> 
+</div>
+{% endblock %}

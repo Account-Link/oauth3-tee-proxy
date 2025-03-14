@@ -1,26 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Register with Passkey</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <script src="/static/js/webauthn-common.js"></script>
-    <script>
-        // Base64URL decoder helper
-        function base64urlDecode(input) {
-            // Convert base64url to base64
-            input = input.replace(/-/g, '+').replace(/_/g, '/');
-            // Add padding if needed
-            const pad = input.length % 4;
-            if (pad) {
-                input += '='.repeat(4 - pad);
-            }
-            return atob(input);
-        }
+{% extends "base.html" %}
 
-        async function startRegistration() {
+{% block title %}Register with Passkey - OAuth3 TEE Proxy{% endblock %}
+{% block page_title %}Register with Passkey{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Base64URL encoder and decoder helpers
+    function base64urlDecode(input) {
+        // Convert base64url to base64
+        input = input.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        const pad = input.length % 4;
+        if (pad) {
+            input += '='.repeat(4 - pad);
+        }
+        return atob(input);
+    }
+    
+    function base64urlEncode(buffer) {
+        // Convert ArrayBuffer to base64
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        // Convert base64 to base64url
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    async function startRegistration() {
+        try {
             const username = document.getElementById('username').value;
             const displayName = document.getElementById('display_name').value;
 
+            if (!username) {
+                alert('Username is required');
+                return;
+            }
+
+            const statusElement = document.getElementById('registration-status');
+            statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Initializing registration...';
+            statusElement.classList.remove('d-none');
+            
             // Get registration options from server
             const optionsResponse = await fetch('/webauthn/register/begin', {
                 method: 'POST',
@@ -34,10 +51,12 @@
             });
 
             if (!optionsResponse.ok) {
-                throw new Error('Failed to get registration options');
+                const error = await optionsResponse.json();
+                throw new Error(error.detail || 'Failed to get registration options');
             }
 
-            const options = JSON.parse(await optionsResponse.text());
+            const options = await optionsResponse.json();
+            statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Creating credentials...';
             
             // Convert base64url strings to ArrayBuffer
             options.user.id = Uint8Array.from(base64urlDecode(options.user.id), c => c.charCodeAt(0));
@@ -48,20 +67,24 @@
                 publicKey: options
             });
 
+            statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Verifying registration...';
+            
             // Convert ArrayBuffer to base64url for sending to server
             const credentialResponse = {
                 credential: {
                     id: credential.id,
-                    rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+                    rawId: base64urlEncode(credential.rawId),
                     response: {
-                        attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
-                        clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+                        attestationObject: base64urlEncode(credential.response.attestationObject),
+                        clientDataJSON: base64urlEncode(credential.response.clientDataJSON),
                     },
                     type: credential.type,
                     transports: credential.response.getTransports ? credential.response.getTransports() : [],
                 },
-                client_data: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
+                client_data: base64urlEncode(credential.response.clientDataJSON)
             };
+
+            console.log("Sending credential response:", credentialResponse);
 
             // Send response to server
             const verificationResponse = await fetch('/webauthn/register/complete', {
@@ -73,25 +96,55 @@
             });
 
             if (!verificationResponse.ok) {
-                throw new Error('Failed to verify registration');
+                const errorData = await verificationResponse.json();
+                throw new Error(errorData.detail || 'Failed to verify registration');
             }
 
             const result = await verificationResponse.json();
-            alert('Registration successful! You can now sign in with your passkey.');
-            window.location.href = '/dashboard';
+            statusElement.innerHTML = '<div class="alert alert-success">Registration successful! Redirecting to dashboard...</div>';
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1500);
+        } catch (error) {
+            console.error('Registration error:', error);
+            document.getElementById('registration-status').innerHTML = 
+                `<div class="alert alert-danger">Registration failed: ${error.message}</div>`;
         }
-    </script>
-</head>
-<body>
-    <h1>Register with Passkey</h1>
-    <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" required>
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Register with Passkey</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label required" for="username">Username</label>
+                    <input type="text" class="form-control" id="username" placeholder="Choose a username" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="display_name">Display Name (optional)</label>
+                    <input type="text" class="form-control" id="display_name" placeholder="Your display name">
+                </div>
+                <div id="registration-status" class="mb-3 d-none"></div>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="/auth/login" class="btn btn-link">Already have an account? Login</a>
+                <button class="btn btn-primary" onclick="startRegistration()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                        <path d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l6.558 -6.558l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z"></path>
+                        <path d="M15 9h.01"></path>
+                    </svg>
+                    Register with Passkey
+                </button>
+            </div>
+        </div>
     </div>
-    <div class="form-group">
-        <label for="display_name">Display Name (optional):</label>
-        <input type="text" id="display_name">
-    </div>
-    <button class="button" onclick="startRegistration()">Register</button>
-</body>
-</html> 
+</div>
+{% endblock %}
