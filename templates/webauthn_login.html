@@ -38,6 +38,8 @@
             statusElement.classList.remove('d-none');
             
             // Get authentication options from server
+            console.log(`Sending login request with username: ${username}`);
+            
             const optionsResponse = await fetch('/auth/login/begin', {
                 method: 'POST',
                 headers: {

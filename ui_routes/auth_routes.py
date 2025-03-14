@@ -227,12 +227,36 @@ async def login_page(request: Request):
 @router.post("/login/begin")
 async def start_login(
     request: Request,
-    username: Optional[str] = Form(None),
+    username: Optional[str] = None,
     passkey_service: PasskeyService = Depends(get_passkey_service),
     db: Session = Depends(get_db)
 ):
     """Start passkey login process."""
     try:
+        # For debugging
+        body = await request.body()
+        logger.info(f"[DEBUG] Raw login request body: {body}")
+        logger.info(f"[DEBUG] Login request username: {username}")
+        logger.info(f"[DEBUG] Login request content type: {request.headers.get('content-type')}")
+
+        # Try to extract username from JSON body if not provided as form data
+        if not username and request.headers.get('content-type') == 'application/json':
+            import json
+            try:
+                data = json.loads(body)
+                logger.info(f"[DEBUG] Login parsed JSON data: {data}")
+                username = data.get('username')
+                logger.info(f"[DEBUG] Login username from JSON: {username}")
+            except Exception as parse_error:
+                logger.error(f"[DEBUG] Error parsing login request body: {str(parse_error)}")
+        
+        logger.info(f"[DEBUG] Final username for lookup: {username}")
+        
+        # Check if user exists directly in DB
+        if username:
+            user = db.query(User).filter(User.username == username).first()
+            logger.info(f"[DEBUG] User in DB: {user.id if user else None}")
+        
         options = passkey_service.start_authentication(
             request=request,
             db=db,
@@ -241,22 +265,63 @@ async def start_login(
         return options
     except Exception as e:
         logger.error(f"Login start failed: {str(e)}")
+        logger.error(f"Login error details:", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login/complete")
 async def complete_login(
     request: Request,
     response: Response,
-    credential_response: CredentialResponse,
+    credential_response: CredentialResponse = None,
     passkey_service: PasskeyService = Depends(get_passkey_service),
     db: Session = Depends(get_db)
 ):
     """Complete passkey login process."""
     try:
+        # Capture raw request for debugging
+        body = await request.body()
+        logger.info(f"[DEBUG] Raw login complete request body: {body}")
+        logger.info(f"[DEBUG] Login complete credential_response: {credential_response}")
+        logger.info(f"[DEBUG] Login complete request content type: {request.headers.get('content-type')}")
+        
+        # Get expected session data 
+        challenge = request.session.get("authentication_challenge")
+        user_id = request.session.get("authenticating_user_id")
+        
+        logger.info(f"[DEBUG] Login complete session challenge: {challenge}")
+        logger.info(f"[DEBUG] Login complete session user_id: {user_id}")
+        
+        # Handle the case where credential_response is None
+        if credential_response is None:
+            logger.error("[DEBUG] Login complete credential_response is None, trying to parse directly from body")
+            import json
+            try:
+                # Try to parse JSON directly from the body
+                data = json.loads(body)
+                logger.info(f"[DEBUG] Login complete parsed JSON data: {data}")
+                
+                if 'credential' in data:
+                    logger.info("[DEBUG] Login complete found credential in parsed JSON")
+                    credential_data = data['credential']
+                else:
+                    logger.error("[DEBUG] Login complete no credential found in parsed JSON")
+                    raise HTTPException(status_code=400, detail="Missing credential data in request")
+            except Exception as parse_error:
+                logger.error(f"[DEBUG] Error parsing login complete request body: {str(parse_error)}")
+                raise HTTPException(status_code=400, detail=f"Failed to parse request: {str(parse_error)}") 
+        else:
+            credential_data = credential_response.credential
+            logger.info(f"[DEBUG] Login complete using credential_data from Pydantic model: {credential_data}")
+        
+        # Check if user exists in DB
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+            logger.info(f"[DEBUG] Login complete user in DB: {user.id if user else None}")
+        
         result = passkey_service.complete_authentication(
             request=request,
             db=db,
-            credential_data=credential_response.credential
+            credential_data=credential_data
         )
         
         # Set token in cookie

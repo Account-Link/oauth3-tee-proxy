@@ -90,9 +90,19 @@ class PasskeyService:
         """
         # Check username if provided
         if username:
-            existing_user = db.query(User).filter(User.username == username).first()
+            # Case-insensitive lookup to prevent duplicate usernames that differ only in case
+            existing_user = db.query(User).filter(User.username.ilike(username)).first()
             if existing_user:
-                raise HTTPException(status_code=400, detail="Username already exists")
+                # Check if this is actually a case-sensitivity issue
+                if existing_user.username.lower() == username.lower():
+                    logger.info(f"Case-insensitive username match found: DB='{existing_user.username}', Request='{username}'")
+                    # If this is a login attempt with an existing username but different case, suggest login
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Username already exists as '{existing_user.username}'. Please login instead."
+                    )
+                else:
+                    raise HTTPException(status_code=400, detail="Username already exists")
         
         # Generate temporary user ID
         temp_user_id = str(uuid.uuid4())
@@ -266,7 +276,11 @@ class PasskeyService:
         user = None
         
         if username:
-            user = db.query(User).filter(User.username == username).first()
+            # Case-insensitive username lookup
+            user = db.query(User).filter(User.username.ilike(username)).first()
+            if not user:
+                # Also try exact match as fallback
+                user = db.query(User).filter(User.username == username).first()
         elif user_id:
             user = db.query(User).filter(User.id == user_id).first()
         
