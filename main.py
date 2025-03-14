@@ -20,6 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 # Local imports
 from config import get_settings
 from database import get_db, engine, Base
+from middleware import create_auth_middleware
 from models import User, WebAuthnCredential, OAuth2Token
 from oauth2_routes import router as oauth2_router
 
@@ -48,7 +49,7 @@ settings = get_settings()
 # Initialize database
 Base.metadata.create_all(bind=engine)
 
-# Add session middleware FIRST
+# Add session middleware FIRST (needed for SessionAuthStrategy)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=settings.SECRET_KEY,
@@ -57,6 +58,9 @@ app.add_middleware(
     same_site="lax",
     https_only=False
 )
+
+# Add authentication middleware
+app.add_middleware(create_auth_middleware)
 
 # Import and include routers
 from oauth2_routes import router as oauth2_router, update_scopes_from_plugins

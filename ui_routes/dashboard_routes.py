@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 # Local imports
 from database import get_db
+from middleware import AuthContext, AuthType, get_auth_context, requires_auth
 from models import User, OAuth2Token
 from plugins.twitter.models import TwitterAccount
 from plugins.telegram.models import TelegramAccount, TelegramChannel
@@ -25,7 +26,12 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter(tags=["UI:Dashboard"])
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, db: Session = Depends(get_db)):
+@requires_auth(AuthType.SESSION)
+async def dashboard(
+    request: Request, 
+    auth: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db)
+):
     """
     Main dashboard page showing connected accounts and OAuth tokens.
     
@@ -34,21 +40,19 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     
     The dashboard now uses plugin UI components to render service-specific sections,
     making it more modular and extensible.
+    
+    Authentication is handled by the AuthMiddleware - this route requires session auth.
     """
     try:
-        user_id = request.session.get("user_id")
-        if not user_id:
-            return RedirectResponse(url="/login")
-        
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            request.session.clear()
-            return RedirectResponse(url="/login")
+        # Authentication is already validated by middleware and @requires_auth decorator
+        # We can safely access the user from the auth context
+        user = auth.user
         
         # Create the base context
         context = {
             "request": request,
             "user": user,
+            "auth": auth,  # Pass auth context to templates
             "twitter_accounts": [],
             "telegram_accounts": [],
             "oauth2_tokens": [],
@@ -63,13 +67,13 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             # Check if Twitter plugin is available
             if any(plugin.service_name == "twitter" for plugin in plugin_manager.get_all_resource_plugins().values()):
                 context["twitter_accounts"] = db.query(TwitterAccount).filter(
-                    TwitterAccount.user_id == user_id
+                    TwitterAccount.user_id == user.id
                 ).all()
             
             # Check if Telegram plugin is available
             if any(plugin.service_name == "telegram" for plugin in plugin_manager.get_all_resource_plugins().values()):
                 context["telegram_accounts"] = db.query(TelegramAccount).filter(
-                    TelegramAccount.user_id == user_id
+                    TelegramAccount.user_id == user.id
                 ).all()
                 
                 # Get channels for each Telegram account
@@ -83,7 +87,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         try:
             # Get active OAuth2 tokens
             context["oauth2_tokens"] = db.query(OAuth2Token).filter(
-                OAuth2Token.user_id == user_id,
+                OAuth2Token.user_id == user.id,
                 OAuth2Token.is_active == True,
                 OAuth2Token.expires_at > datetime.utcnow()
             ).all()

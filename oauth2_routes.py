@@ -8,6 +8,7 @@ import logging
 from models import OAuth2Token, User
 from database import get_db
 from config import get_settings
+from middleware import AuthContext, AuthType, get_auth_context, requires_auth
 from plugin_manager import plugin_manager
 
 # Import plugin-specific settings to get allowed scopes
@@ -147,9 +148,11 @@ async def verify_token_and_scopes(
     return token_record
 
 @router.post("/token")
+@requires_auth(AuthType.SESSION)
 async def create_token(
     request: Request,
     scopes: str = Form(...),  # Space separated scopes
+    auth: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db)
 ):
     """
@@ -160,7 +163,7 @@ async def create_token(
     specific permissions requested by the client.
     
     The function performs the following steps:
-    1. Verifies that the user is authenticated via session
+    1. Verifies that the user is authenticated via session (via @requires_auth)
     2. Validates that the requested scopes are allowed
     3. Creates a new OAuth2 token with the requested scopes
     4. Returns the token details to the client
@@ -168,6 +171,7 @@ async def create_token(
     Args:
         request (Request): The HTTP request object
         scopes (str): Space-separated list of requested scopes
+        auth (AuthContext): Authentication context from middleware
         db (Session): The database session
         
     Returns:
@@ -180,21 +184,9 @@ async def create_token(
     Raises:
         HTTPException: If authentication fails or requested scopes are invalid
     """
-    # Check if user is authenticated via session
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Must be account owner to request tokens."
-        )
-    
-    # Get user
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
+    # User is already authenticated by the @requires_auth decorator
+    # We can safely use auth.user
+    user = auth.user
     
     # Validate requested scopes
     requested_scopes = set(scopes.split())
@@ -210,7 +202,7 @@ async def create_token(
     token = OAuth2Token(
         access_token=str(uuid.uuid4()),
         scopes=scopes,
-        user_id=user_id,
+        user_id=user.id,
         expires_at=datetime.utcnow() + timedelta(hours=settings.OAUTH2_TOKEN_EXPIRE_HOURS)
     )
     db.add(token)
@@ -224,9 +216,10 @@ async def create_token(
     }
 
 @router.delete("/token/{token_id}")
+@requires_auth(AuthType.SESSION)
 async def revoke_token(
     token_id: str,
-    request: Request,
+    auth: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db)
 ):
     """
@@ -238,13 +231,13 @@ async def revoke_token(
     for audit purposes.
     
     The function performs the following steps:
-    1. Verifies that the user is authenticated via session
+    1. Verifies that the user is authenticated via session (via @requires_auth)
     2. Verifies that the token exists and belongs to the authenticated user
     3. Sets the token's is_active flag to False
     
     Args:
         token_id (str): The ID of the token to revoke
-        request (Request): The HTTP request object
+        auth (AuthContext): Authentication context from middleware
         db (Session): The database session
         
     Returns:
@@ -253,18 +246,13 @@ async def revoke_token(
     Raises:
         HTTPException: If authentication fails or the token is not found
     """
-    # Check if user is authenticated via session
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required"
-        )
+    # User is already authenticated by the @requires_auth decorator
+    # We can safely use auth.user
     
     # Get token
     token = db.query(OAuth2Token).filter(
         OAuth2Token.token_id == token_id,
-        OAuth2Token.user_id == user_id,
+        OAuth2Token.user_id == auth.user.id,
         OAuth2Token.is_active == True
     ).first()
     
