@@ -3,12 +3,14 @@ Twitter Cookie Auth Routes
 =========================
 
 This module provides RESTful API endpoints for Twitter cookie authentication.
+Only accepts JSON requests and always responds with JSON.
 """
 
 import logging
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, Body, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -16,6 +18,11 @@ from plugins.twitter.models import TwitterAccount
 from plugin_manager import plugin_manager
 
 logger = logging.getLogger(__name__)
+
+
+class CookieRequest(BaseModel):
+    """Model for Twitter cookie submission request"""
+    cookie: str
 
 
 def create_cookie_auth_router() -> APIRouter:
@@ -27,41 +34,18 @@ def create_cookie_auth_router() -> APIRouter:
     """
     router = APIRouter(tags=["twitter:auth:cookies"])
     
-    def handle_error(message: str, is_api_call: bool, status_code: int = 400) -> Response:
-        """Helper function to handle errors consistently based on call type"""
-        if is_api_call:
-            raise HTTPException(status_code=status_code, detail=message)
-        else:
-            return RedirectResponse(
-                url=f"/error?message={message}&back_url=/twitter/auth/admin", 
-                status_code=303
-            )
+    def handle_error(message: str, status_code: int = 400) -> JSONResponse:
+        """Helper function to handle errors consistently"""
+        return JSONResponse(
+            status_code=status_code,
+            content={"status": "error", "message": message}
+        )
     
-    async def extract_cookie(request: Request, twitter_cookie: str, cookie_data: dict) -> tuple:
-        """Extract cookie from request and determine if it's an API call"""
-        is_api_call = request.headers.get('content-type', '').startswith('application/json')
-        cookie_string = None
-        
-        if is_api_call:
-            # For JSON requests
-            if cookie_data and 'cookie' in cookie_data:
-                cookie_string = cookie_data['cookie']
-                logger.debug("Found cookie in Body parameter")
-            elif not cookie_data:
-                try:
-                    body = await request.json()
-                    if 'cookie' in body:
-                        cookie_string = body['cookie']
-                        logger.debug("Found cookie in JSON body")
-                except Exception as e:
-                    logger.debug(f"Error parsing JSON body: {str(e)}")
-        elif twitter_cookie:
-            # For form submissions
-            cookie_string = twitter_cookie
-            is_api_call = False
-            logger.debug("Found cookie in form data")
-            
-        return cookie_string, is_api_call
+    async def extract_cookie(cookie_data: CookieRequest) -> str:
+        """Extract cookie from request data"""
+        if not cookie_data or not cookie_data.cookie:
+            return None
+        return cookie_data.cookie
     
     async def update_or_create_account(db: Session, twitter_id: str, cookie_string: str, 
                                user_id: str, profile_info: dict) -> tuple:
@@ -103,13 +87,11 @@ def create_cookie_auth_router() -> APIRouter:
         db.commit()
         return username, display_name, profile_image_url
             
-    @router.post("", status_code=201)
+    @router.post("", status_code=status.HTTP_201_CREATED, response_class=JSONResponse)
     async def create_cookie_auth(
-        response: Response,
-        db: Session = Depends(get_db),
-        twitter_cookie: str = Form(None, description="Twitter cookie to submit"),
-        request: Request = None,
-        cookie_data: dict = Body(None)
+        request: Request,
+        cookie_data: CookieRequest,
+        db: Session = Depends(get_db)
     ):
         """
         Submit and validate a Twitter cookie.
@@ -122,20 +104,20 @@ def create_cookie_auth_router() -> APIRouter:
         """
         # Check authentication
         if not request.session.get("user_id"):
-            raise HTTPException(
-                status_code=401, 
-                detail="Authentication required. Please log in first."
+            return handle_error(
+                "Authentication required. Please log in first.",
+                status.HTTP_401_UNAUTHORIZED
             )
         
         try:
             # Extract cookie from request
-            cookie_string, is_api_call = await extract_cookie(request, twitter_cookie, cookie_data)
+            cookie_string = await extract_cookie(cookie_data)
             
             # Check if cookie was found
             if not cookie_string:
                 return handle_error(
-                    "No cookie provided. Please submit the cookie via form or API.",
-                    is_api_call
+                    "No cookie provided. Please submit the cookie in the request body.",
+                    status.HTTP_400_BAD_REQUEST
                 )
             
             # Get Twitter auth plugin
@@ -143,8 +125,7 @@ def create_cookie_auth_router() -> APIRouter:
             if not twitter_auth:
                 return handle_error(
                     "Twitter cookie authorization plugin not available",
-                    is_api_call,
-                    500
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
             # Parse and validate the cookie
@@ -153,7 +134,7 @@ def create_cookie_auth_router() -> APIRouter:
             except ValueError as e:
                 return handle_error(
                     f"Invalid Twitter cookie format: {str(e)}. Please provide the cookie in the format: auth_token=YOUR_COOKIE_VALUE",
-                    is_api_call
+                    status.HTTP_400_BAD_REQUEST
                 )
             
             # Validate credentials
@@ -161,7 +142,7 @@ def create_cookie_auth_router() -> APIRouter:
             if not is_valid:
                 return handle_error(
                     "Invalid Twitter cookie. The cookie may be expired or invalid. Please provide a fresh auth_token cookie from a logged-in Twitter session.",
-                    is_api_call
+                    status.HTTP_400_BAD_REQUEST
                 )
             
             # Get Twitter ID and profile
@@ -175,11 +156,17 @@ def create_cookie_auth_router() -> APIRouter:
             ).first()
             
             if existing_account and existing_account.user_id and existing_account.user_id != request.session.get("user_id"):
-                raise HTTPException(status_code=400, detail="Twitter account already linked to another user")
+                return handle_error(
+                    "Twitter account already linked to another user",
+                    status.HTTP_400_BAD_REQUEST
+                )
             
             # Basic validation - check if cookie is empty
             if not cookie_string:
-                return handle_error("Cookie cannot be empty", is_api_call)
+                return handle_error(
+                    "Cookie cannot be empty",
+                    status.HTTP_400_BAD_REQUEST
+                )
                 
             # Update or create account
             username, display_name, profile_image_url = await update_or_create_account(
@@ -188,10 +175,10 @@ def create_cookie_auth_router() -> APIRouter:
             
             logger.info(f"Successfully linked Twitter account {twitter_id} to user {request.session.get('user_id')}")
             
-            # Return response based on call type
-            if is_api_call:
-                response.status_code = 201
-                return {
+            # Return successful JSON response
+            return JSONResponse(
+                status_code=status.HTTP_201_CREATED,
+                content={
                     "status": "success",
                     "message": "Twitter account successfully linked",
                     "account": {
@@ -201,20 +188,18 @@ def create_cookie_auth_router() -> APIRouter:
                         "profile_image_url": profile_image_url
                     }
                 }
-            else:
-                return RedirectResponse(url="/dashboard", status_code=303)
+            )
                 
-        except HTTPException:
-            # Re-raise HTTP exceptions directly
-            raise
         except ValueError as e:
-            return handle_error(f"Invalid Twitter cookie: {str(e)}", is_api_call)
+            return handle_error(
+                f"Invalid Twitter cookie: {str(e)}",
+                status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.error(f"Error processing cookie submission: {str(e)}", exc_info=True)
             return handle_error(
                 f"An error occurred while processing your request: {str(e)}",
-                is_api_call,
-                500
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     return router

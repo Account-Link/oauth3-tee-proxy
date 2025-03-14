@@ -35,16 +35,17 @@ class TestTwitterCookieRoutes:
             # Set up client session for the test user
             client.set_session({"user_id": test_user.id})
             
-            # Make the request - allow_redirects=False to prevent the client from following redirects
+            # Make the request with JSON data
             response = client.post(
                 "/twitter/auth/cookies",
-                data={"twitter_cookie": "auth_token=abcdef; ct0=123456"},
-                allow_redirects=False
+                json={"cookie": "auth_token=abcdef; ct0=123456"},
+                headers={"Content-Type": "application/json"}
             )
             
-            # Verify we get a redirect response
-            assert response.status_code == 303
-            assert response.headers["location"] == "/dashboard"
+            # Verify we get a successful JSON response
+            assert response.status_code == 201
+            assert response.json()["status"] == "success"
+            assert "account" in response.json()
             
             # Verify the mock was called correctly
             mock_create_auth.assert_called_with("twitter_cookie")
@@ -61,12 +62,13 @@ class TestTwitterCookieRoutes:
         # Make the request without setting a session (unauthenticated)
         response = client.post(
             "/twitter/auth/cookies",
-            data={"twitter_cookie": "auth_token=abcdef; ct0=123456"}
+            json={"cookie": "auth_token=abcdef; ct0=123456"},
+            headers={"Content-Type": "application/json"}
         )
         
         # Verify response indicates authentication is required
         assert response.status_code == 401
-        assert "Authentication required" in response.json()["detail"]
+        assert "Authentication required" in response.json()["message"]
     
     def test_submit_cookie_invalid(self, client, test_user):
         """Test submitting an invalid cookie"""
@@ -122,13 +124,14 @@ class TestTwitterCookieRoutes:
             # Make the request
             response = client.post(
                 "/twitter/auth/cookies",
-                data={"twitter_cookie": "auth_token=newtoken; ct0=newct0"},
-                allow_redirects=False
+                json={"cookie": "auth_token=newtoken; ct0=newct0"},
+                headers={"Content-Type": "application/json"}
             )
             
-            # Verify we get a redirect response
-            assert response.status_code == 303
-            assert response.headers["location"] == "/dashboard"
+            # Verify we get a successful JSON response
+            assert response.status_code == 201
+            assert response.json()["status"] == "success"
+            assert "account" in response.json()
             
             # Verify mocks were called
             mock_create_auth.assert_called_with("twitter_cookie")
