@@ -73,7 +73,8 @@ app.add_middleware(
         "/static/*",
         "/docs",
         "/redoc",
-        "/openapi.json"
+        "/openapi.json",
+        "/webauthn/*"  # Legacy WebAuthn endpoints implement their own authentication
     ],
     protected_paths=[
         "/profile",
@@ -92,6 +93,7 @@ app.add_middleware(
 from ui_routes.auth_routes import router as auth_router
 from ui_routes.dashboard_routes import router as dashboard_router
 from ui_routes.api_routes import router as api_router, update_available_scopes
+from ui_routes.webauthn_routes import router as webauthn_router
 
 # Initialize plugins first
 plugin_manager.discover_plugins()
@@ -104,6 +106,7 @@ update_available_scopes(plugin_scopes)
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(api_router)
+app.include_router(webauthn_router)
 
 # Root route
 @app.get("/")
@@ -123,6 +126,12 @@ async def root(request: Request):
             "user": user
         }
     )
+
+# Profile redirect route
+@app.get("/profile")
+async def profile_redirect():
+    """Redirect to the auth profile page."""
+    return RedirectResponse(url="/auth/profile", status_code=303)
 
 # Include service-specific routers from plugins
 service_routers = plugin_manager.get_service_routers()

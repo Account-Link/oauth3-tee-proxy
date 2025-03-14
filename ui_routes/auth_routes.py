@@ -186,7 +186,7 @@ async def complete_registration(
             secure=False  # Set to True in production with HTTPS
         )
         
-        return {"success": True, "redirect": "/profile"}
+        return {"success": True, "redirect": "/auth/profile"}
     except Exception as e:
         logger.error(f"Registration completion failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -294,7 +294,7 @@ async def complete_login(
             secure=False  # Set to True in production with HTTPS
         )
         
-        return {"success": True, "redirect": "/profile"}
+        return {"success": True, "redirect": "/auth/profile"}
     except Exception as e:
         logger.error(f"Login completion failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -327,40 +327,68 @@ async def logout(
 
 # Profile routes
 @router.get("/profile")
+@router.get("/profile/{tab}")
 async def profile_page(
     request: Request,
+    tab: Optional[str] = None,
     user: User = Depends(get_current_user),
     passkey_service: PasskeyService = Depends(get_passkey_service),
     db: Session = Depends(get_db)
 ):
     """Render the user profile page."""
-    # Get user's passkeys
-    passkeys = passkey_service.get_user_credentials(user.id, db)
+    # Get user's passkeys with detailed logging
+    logger.info(f"Getting passkeys for user {user.id}")
+    
+    try:
+        passkeys = passkey_service.get_user_credentials(user.id, db)
+        logger.info(f"Found {len(passkeys)} passkeys for user {user.id}")
+    except Exception as e:
+        logger.error(f"Error getting passkeys: {str(e)}")
+        passkeys = []
     
     # Get active tokens
-    tokens = db.query(JWTToken).filter(
-        JWTToken.user_id == user.id,
-        JWTToken.is_active == True
-    ).all()
+    try:
+        tokens = db.query(JWTToken).filter(
+            JWTToken.user_id == user.id,
+            JWTToken.is_active == True
+        ).all()
+        logger.info(f"Found {len(tokens)} active tokens for user {user.id}")
+    except Exception as e:
+        logger.error(f"Error getting tokens: {str(e)}")
+        tokens = []
     
     # Get recent access logs
-    access_logs = db.query(AuthAccessLog).filter(
-        AuthAccessLog.user_id == user.id
-    ).order_by(
-        AuthAccessLog.timestamp.desc()
-    ).limit(10).all()
+    try:
+        access_logs = db.query(AuthAccessLog).filter(
+            AuthAccessLog.user_id == user.id
+        ).order_by(
+            AuthAccessLog.timestamp.desc()
+        ).limit(10).all()
+        logger.info(f"Found {len(access_logs)} access logs for user {user.id}")
+    except Exception as e:
+        logger.error(f"Error getting access logs: {str(e)}")
+        access_logs = []
     
-    return templates.TemplateResponse(
-        "profile.html",
-        {
-            "request": request,
-            "title": "Your Profile",
-            "user": user,
-            "passkeys": passkeys,
-            "tokens": tokens,
-            "access_logs": access_logs
+    # Create context with detailed debug info
+    context = {
+        "request": request,
+        "title": "Your Profile",
+        "user": user,
+        "passkeys": passkeys,
+        "tokens": tokens,
+        "access_logs": access_logs,
+        "debug_info": {
+            "user_id": user.id,
+            "username": user.username,
+            "passkeys_count": len(passkeys) if passkeys else 0,
+            "tokens_count": len(tokens) if tokens else 0,
+            "logs_count": len(access_logs) if access_logs else 0
         }
-    )
+    }
+    
+    logger.info(f"Rendering profile page with context: {context['debug_info']}")
+    
+    return templates.TemplateResponse("profile.html", context)
 
 @router.post("/profile/update")
 async def update_profile(
@@ -370,37 +398,52 @@ async def update_profile(
     db: Session = Depends(get_db)
 ):
     """Update user profile information."""
+    # Log the incoming request data for debugging
+    logger.info(f"Profile update request: {profile_data.dict()}")
+    logger.info(f"Current user data: username={user.username}, email={user.email}, phone={user.phone_number}, wallet={user.wallet_address}")
+    
     # Check if username is being changed and is unique
     if profile_data.username and profile_data.username != user.username:
         existing_user = db.query(User).filter(User.username == profile_data.username).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already exists")
         user.username = profile_data.username
+        logger.info(f"Updated username to: {user.username}")
     
     # Check if email is being changed and is unique
-    if profile_data.email and profile_data.email != user.email:
-        existing_user = db.query(User).filter(User.email == profile_data.email).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Email already exists")
-        user.email = profile_data.email
+    if profile_data.email is not None:  # Allow empty string to clear email
+        if profile_data.email != user.email:
+            if profile_data.email:  # Only check uniqueness for non-empty emails
+                existing_user = db.query(User).filter(User.email == profile_data.email).first()
+                if existing_user:
+                    raise HTTPException(status_code=400, detail="Email already exists")
+            user.email = profile_data.email
+            logger.info(f"Updated email to: {user.email}")
     
     # Check if phone number is being changed and is unique
-    if profile_data.phone_number and profile_data.phone_number != user.phone_number:
-        existing_user = db.query(User).filter(User.phone_number == profile_data.phone_number).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Phone number already exists")
-        user.phone_number = profile_data.phone_number
+    if profile_data.phone_number is not None:  # Allow empty string to clear phone
+        if profile_data.phone_number != user.phone_number:
+            if profile_data.phone_number:  # Only check uniqueness for non-empty phone numbers
+                existing_user = db.query(User).filter(User.phone_number == profile_data.phone_number).first()
+                if existing_user:
+                    raise HTTPException(status_code=400, detail="Phone number already exists")
+            user.phone_number = profile_data.phone_number
+            logger.info(f"Updated phone number to: {user.phone_number}")
     
     # Check if wallet address is being changed and is unique
-    if profile_data.wallet_address and profile_data.wallet_address != user.wallet_address:
-        existing_user = db.query(User).filter(User.wallet_address == profile_data.wallet_address).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Wallet address already exists")
-        user.wallet_address = profile_data.wallet_address
+    if profile_data.wallet_address is not None:  # Allow empty string to clear wallet
+        if profile_data.wallet_address != user.wallet_address:
+            if profile_data.wallet_address:  # Only check uniqueness for non-empty wallet addresses
+                existing_user = db.query(User).filter(User.wallet_address == profile_data.wallet_address).first()
+                if existing_user:
+                    raise HTTPException(status_code=400, detail="Wallet address already exists")
+            user.wallet_address = profile_data.wallet_address
+            logger.info(f"Updated wallet address to: {user.wallet_address}")
     
     # Update display name
-    if profile_data.display_name:
+    if profile_data.display_name is not None:
         user.display_name = profile_data.display_name
+        logger.info(f"Updated display name to: {user.display_name}")
     
     # Log the profile update
     log_entry = AuthAccessLog(
@@ -412,6 +455,9 @@ async def update_profile(
     db.add(log_entry)
     
     db.commit()
+    
+    # Log the updated user data
+    logger.info(f"Updated user data: username={user.username}, email={user.email}, phone={user.phone_number}, wallet={user.wallet_address}")
     
     return {"success": True, "message": "Profile updated successfully"}
 

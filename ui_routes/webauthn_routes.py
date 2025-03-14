@@ -225,7 +225,7 @@ async def complete_registration(
         reg_session.clear()
         reg_session.create_user_session(user.id)
         
-        return {"status": "success", "user_id": user.id}
+        return {"status": "success", "user_id": user.id, "redirect": "/auth/profile"}
         
     except Exception as e:
         print("Registration failed with error:", str(e))
@@ -333,7 +333,7 @@ async def complete_authentication(
         auth_session.create_user_session(user_id)
         
         db.commit()
-        return {"status": "success", "user_id": user_id}
+        return {"status": "success", "user_id": user_id, "redirect": "/auth/profile"}
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

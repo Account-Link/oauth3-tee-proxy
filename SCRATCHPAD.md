@@ -11,4 +11,4 @@ This is intended as an ultralight PM tool to coordinate the current context and 
 
 - [ ] Remove all knowledge of the twitter and telegram plugins from the codebase. The plugins should be registering themselves, their routes, and their UI. If there are any authorization requirements for routes provided by the plugins, they should be handled by the plugin.
 - [ ] The OAuth2 scopes should be structured as 'plugin_name.[read|write]'. Any further granularity should be handled by the plugin's policy framework.
-- [ ] We need the concept of registering an App with the OAuth3 TEE Proxy. This will allow us to handle the creation of OAuth2 tokens for the App.
+- [ ] The email, phone number and base wallet fields aren't working on the profile page.
