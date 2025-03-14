@@ -26,13 +26,19 @@ Authentication Flow:
 5. The TEE Proxy can now make Twitter API calls on behalf of the user
 """
 
+import hashlib
 import json
 import logging
-from typing import Dict, Any
+import time
+from datetime import datetime
+from typing import Dict, Any, Tuple
+
 import requests
 from twitter.account import Account
+from sqlalchemy.orm import Session
 
 from plugins.twitter.auth import TwitterBaseAuthorizationPlugin
+from plugins.twitter.models import TwitterAccount
 
 # Lazily import Account to avoid startup issues
 def get_twitter_account():
@@ -417,6 +423,46 @@ class TwitterCookieAuthorizationPlugin(TwitterBaseAuthorizationPlugin):
         """
         return json.dumps(credentials)
     
+    async def update_or_create_account(self, db: Session, twitter_id: str, cookie_string: str, 
+                           user_id: str, profile_info: dict) -> Tuple[str, str, str]:
+        """Update existing account or create new one"""
+        username = profile_info.get('username')
+        display_name = profile_info.get('name')
+        profile_image_url = profile_info.get('profile_image_url')
+        
+        existing_account = db.query(TwitterAccount).filter(
+            TwitterAccount.twitter_id == twitter_id
+        ).first()
+        
+        if existing_account:
+            # Update existing account
+            existing_account.twitter_cookie = cookie_string
+            existing_account.updated_at = datetime.utcnow()
+            existing_account.user_id = user_id
+            
+            # Update profile information if available
+            if username:
+                existing_account.username = username
+            if display_name:
+                existing_account.display_name = display_name
+            if profile_image_url:
+                existing_account.profile_image_url = profile_image_url
+        else:
+            # Create new account
+            account = TwitterAccount(
+                twitter_id=twitter_id,
+                twitter_cookie=cookie_string,
+                user_id=user_id,
+                username=username,
+                display_name=display_name,
+                profile_image_url=profile_image_url
+            )
+            db.add(account)
+            db.flush()  # Get the new ID
+        
+        db.commit()
+        return username, display_name, profile_image_url
+            
     def credentials_from_string(self, credentials_str: str) -> Dict[str, Any]:
         """
         Convert cookie string to credentials dictionary.

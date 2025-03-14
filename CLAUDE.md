@@ -28,6 +28,8 @@
 - FastAPI dependency injection with Depends()
 - Security: WebAuthn, OAuth2 tokens, env-based configuration
 - Templates: Jinja2 with HTML/CSS/JS in dedicated directories
+- Organize functions alphabetically by function name within the same file or scope
+- Router files should only contain route definitions, request validation, and dependency injection - business logic belongs in separate modules
 
 ## PLUGIN ARCHITECTURE
 - Each integration should be implemented as a plugin with these components:

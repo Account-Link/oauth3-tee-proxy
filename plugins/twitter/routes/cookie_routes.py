@@ -47,45 +47,6 @@ def create_cookie_auth_router() -> APIRouter:
             return None
         return cookie_data.cookie
     
-    async def update_or_create_account(db: Session, twitter_id: str, cookie_string: str, 
-                               user_id: str, profile_info: dict) -> tuple:
-        """Update existing account or create new one"""
-        username = profile_info.get('username')
-        display_name = profile_info.get('name')
-        profile_image_url = profile_info.get('profile_image_url')
-        
-        existing_account = db.query(TwitterAccount).filter(
-            TwitterAccount.twitter_id == twitter_id
-        ).first()
-        
-        if existing_account:
-            # Update existing account
-            existing_account.twitter_cookie = cookie_string
-            existing_account.updated_at = datetime.utcnow()
-            existing_account.user_id = user_id
-            
-            # Update profile information if available
-            if username:
-                existing_account.username = username
-            if display_name:
-                existing_account.display_name = display_name
-            if profile_image_url:
-                existing_account.profile_image_url = profile_image_url
-        else:
-            # Create new account
-            account = TwitterAccount(
-                twitter_id=twitter_id,
-                twitter_cookie=cookie_string,
-                user_id=user_id,
-                username=username,
-                display_name=display_name,
-                profile_image_url=profile_image_url
-            )
-            db.add(account)
-            db.flush()  # Get the new ID
-        
-        db.commit()
-        return username, display_name, profile_image_url
             
     @router.post("", status_code=status.HTTP_201_CREATED, response_class=JSONResponse)
     async def create_cookie_auth(
@@ -169,7 +130,7 @@ def create_cookie_auth_router() -> APIRouter:
                 )
                 
             # Update or create account
-            username, display_name, profile_image_url = await update_or_create_account(
+            username, display_name, profile_image_url = await twitter_auth.update_or_create_account(
                 db, twitter_id, cookie_string, request.session.get("user_id"), profile_info
             )
             
