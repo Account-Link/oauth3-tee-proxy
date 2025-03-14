@@ -344,33 +344,19 @@ class PasskeyService:
             timeout=60000,
         )
         
-        # Convert options to JSON for debugging
-        options_json = json.loads(options_to_json(options))
-        logger.info(f"Authentication options JSON: {options_to_json(options)[:100]}...")
-        logger.info(f"Challenge: {bytes_to_base64url(options.challenge)}")
-        logger.info(f"RP ID: {options_json['rpId']}")
-        logger.info(f"Allow Credentials: {len(options_json['allowCredentials'])} items")
-        
         # Store challenge in session
         request.session["authentication_challenge"] = bytes_to_base64url(options.challenge)
         request.session["authenticating_user_id"] = user.id
         
-        # Convert options to JSON but catch any errors
+        # Convert options to JSON
         try:
             options_json = options_to_json(options)
-            # Log the response for debugging
-            logger.info(f"Authentication options JSON: {options_json[:100]}...")
             
             # Convert result to dict for inspection and potential modification
             try:
                 options_dict = json.loads(options_json)
                 
-                # Log for debugging
-                logger.info(f"Challenge: {options_dict.get('challenge', 'MISSING')}")
-                logger.info(f"RP ID: {options_dict.get('rpId', 'MISSING')}")
-                logger.info(f"Allow Credentials: {len(options_dict.get('allowCredentials', []))} items")
-                
-                # Ensure client properties are correctly set for your client
+                # Ensure client properties are correctly set for client compatibility
                 if 'allowCredentials' in options_dict:
                     for cred in options_dict['allowCredentials']:
                         # Ensure type is correctly set

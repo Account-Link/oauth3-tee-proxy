@@ -114,11 +114,7 @@ async function startWebAuthnLogin(username) {
     }
     
     // Get authentication options
-    const optionsText = await startResponse.json();
-    console.log('Server response:', optionsText);
-    
-    const options = JSON.parse(optionsText);
-    console.log('Parsed options:', options);
+    const options = await startResponse.json();
     
     // Validate required fields
     if (!options.challenge) {
@@ -141,8 +137,6 @@ async function startWebAuthnLogin(username) {
       })),
       userVerification: options.userVerification || 'preferred'
     };
-    
-    console.log('Prepared options for WebAuthn API:', publicKeyOptions);
     showStatus('Please follow your browser instructions to authenticate...', 'info');
     
     // Step 2: Use WebAuthn API to get credential
@@ -150,7 +144,6 @@ async function startWebAuthnLogin(username) {
       publicKey: publicKeyOptions
     });
     
-    console.log('WebAuthn credential received:', credential);
     showStatus('Authentication successful, verifying with server...', 'info');
     
     // Step 3: Prepare credential for server
@@ -168,7 +161,6 @@ async function startWebAuthnLogin(username) {
       }
     };
     
-    console.log('Prepared credential for server:', serverCredential);
     
     // Step 4: Send credential to server for verification
     const verifyResponse = await fetch('/auth/login/complete', {
@@ -183,7 +175,6 @@ async function startWebAuthnLogin(username) {
     }
     
     const result = await verifyResponse.json();
-    console.log('Server verification result:', result);
     
     // Handle successful login
     showStatus('Login successful! Redirecting...', 'success');
@@ -194,7 +185,6 @@ async function startWebAuthnLogin(username) {
     }, 1000);
     
   } catch (error) {
-    console.error('Login error:', error);
     showStatus('Error: ' + error.message, 'danger');
     showLoading(false);
   }
