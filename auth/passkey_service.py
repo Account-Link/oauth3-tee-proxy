@@ -344,6 +344,13 @@ class PasskeyService:
             timeout=60000,
         )
         
+        # Convert options to JSON for debugging
+        options_json = json.loads(options_to_json(options))
+        logger.info(f"Authentication options JSON: {options_to_json(options)[:100]}...")
+        logger.info(f"Challenge: {bytes_to_base64url(options.challenge)}")
+        logger.info(f"RP ID: {options_json['rpId']}")
+        logger.info(f"Allow Credentials: {len(options_json['allowCredentials'])} items")
+        
         # Store challenge in session
         request.session["authentication_challenge"] = bytes_to_base64url(options.challenge)
         request.session["authenticating_user_id"] = user.id

@@ -2,202 +2,218 @@
 
 {% block title %}{{ title }}{% endblock %}
 
-{% block extra_css %}
-<style>
-  .passkey-animation {
-    text-align: center;
-    margin: 20px 0;
-  }
-  
-  .passkey-icon {
-    font-size: 3rem;
-    animation: pulse 1.5s infinite ease-in-out;
-    color: #007bff;
-  }
-  
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.1); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.5; }
-  }
-  
-  .loading {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid rgba(0, 123, 255, 0.25);
-    border-top-color: #007bff;
-    border-radius: 50%;
-    animation: spin 1s infinite linear;
-    margin-right: 0.5rem;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="auth-container">
-  <h1>Login with Passkey</h1>
-  
-  <p class="auth-intro">
-    Securely log in to your account using your passkey. No password needed!
-  </p>
-  
-  <form id="login-form" class="auth-form">
-    <div class="form-group">
-      <label for="username">Username (optional if using platform authenticator)</label>
-      <input type="text" id="username" name="username" class="form-control">
-      <small class="form-text text-muted">If you have passkeys on multiple accounts, enter your username.</small>
+<div class="container">
+  <div class="row">
+    <div class="col-md-6 mx-auto">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Login with Passkey</h3>
+        </div>
+        <div class="card-body">
+          <p>Securely log in to your account using your passkey.</p>
+          
+          <form id="loginForm">
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <input type="text" class="form-control" id="username" name="username">
+              <div class="form-text">Enter your username to log in with your passkey.</div>
+            </div>
+            
+            <div id="statusMessage" class="alert alert-info d-none"></div>
+            
+            <div class="d-flex justify-content-between">
+              <a href="/auth/register" class="btn btn-link">Register New Account</a>
+              <button type="submit" class="btn btn-primary">
+                <span id="submitText">Login</span>
+                <span id="loadingIndicator" class="d-none">
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  Loading...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
-    
-    <div class="passkey-animation" id="passkey-animation" style="display: none;">
-      <div class="passkey-icon">🔑</div>
-      <p>Use your passkey to log in</p>
-    </div>
-    
-    <button type="submit" class="btn btn-primary btn-lg btn-block" id="login-button">
-      <span id="button-text">Login with Passkey</span>
-      <span id="button-loading" style="display: none;"><span class="loading"></span>Processing...</span>
-    </button>
-    
-    <div class="form-message" id="login-message"></div>
-  </form>
-  
-  <div class="auth-links">
-    <p>Don't have an account? <a href="/auth/register">Register with Passkey</a></p>
   </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/webauthn-helper.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const loginForm = document.getElementById('login-form');
-  const loginButton = document.getElementById('login-button');
-  const loginMessage = document.getElementById('login-message');
-  const passkeyAnimation = document.getElementById('passkey-animation');
-  const buttonText = document.getElementById('button-text');
-  const buttonLoading = document.getElementById('button-loading');
-  
-  function showLoading(message) {
-    buttonText.style.display = 'none';
-    buttonLoading.style.display = 'inline';
-    loginButton.disabled = true;
-    loginMessage.textContent = message;
+// Base64 URL utilities
+function base64UrlToBase64(base64Url) {
+  let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const padLength = (4 - (base64.length % 4)) % 4;
+  return base64 + '='.repeat(padLength);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
   }
-  
-  function hideLoading() {
-    buttonText.style.display = 'inline';
-    buttonLoading.style.display = 'none';
-    loginButton.disabled = false;
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+// UI utilities
+function showStatus(message, type = 'info') {
+  const statusElement = document.getElementById('statusMessage');
+  statusElement.textContent = message;
+  statusElement.className = `alert alert-${type}`;
+  statusElement.classList.remove('d-none');
+}
+
+function showLoading(isLoading) {
+  const submitText = document.getElementById('submitText');
+  const loadingIndicator = document.getElementById('loadingIndicator');
   
-  function showError(message) {
-    loginMessage.textContent = message;
-    loginMessage.style.color = '#dc3545';
-    hideLoading();
+  if (isLoading) {
+    submitText.classList.add('d-none');
+    loadingIndicator.classList.remove('d-none');
+    document.querySelector('button[type="submit"]').disabled = true;
+  } else {
+    submitText.classList.remove('d-none');
+    loadingIndicator.classList.add('d-none');
+    document.querySelector('button[type="submit"]').disabled = false;
   }
-  
-  function showSuccess(message) {
-    loginMessage.textContent = message;
-    loginMessage.style.color = '#28a745';
-  }
-  
-  loginForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    showLoading('Starting login process...');
+}
+
+// Main login process
+async function startWebAuthnLogin(username) {
+  try {
+    // Show loading state
+    showLoading(true);
+    showStatus('Starting authentication...', 'info');
     
-    try {
-      // Get username if provided
-      const usernameInput = document.getElementById('username');
-      const username = usernameInput.value.trim();
-      
-      // Start authentication
-      const formData = new FormData();
-      if (username) {
-        formData.append('username', username);
-      }
-      
-      // Show passkey animation
-      passkeyAnimation.style.display = 'block';
-      
-      // Convert FormData to JSON for better compatibility
-      const jsonData = { username: username };
-      console.log("Sending login request with data:", jsonData);
-      
-      const startResponse = await fetch('/auth/login/begin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(jsonData)
-      });
-      
-      if (!startResponse.ok) {
-        const error = await startResponse.json();
-        throw new Error(error.detail || 'Failed to start login');
-      }
-      
-      const responseText = await startResponse.text();
-      console.log("Raw response text:", responseText);
-      
-      // Pass the raw response text to the WebAuthnHelper
-      // It will handle parsing if needed
-      const preparedOptions = WebAuthnHelper.prepareAuthenticationOptions(responseText);
-      
-      // Get authentication from browser
-      loginMessage.textContent = 'Please follow your browser\'s instructions to authenticate...';
-      const credential = await navigator.credentials.get({
-        publicKey: preparedOptions
-      });
-      
-      // Hide passkey animation
-      passkeyAnimation.style.display = 'none';
-      
-      // Prepare credential for sending to server
-      const serverCredential = WebAuthnHelper.prepareCredentialForServer(credential);
-      
-      // Complete authentication
-      showLoading('Verifying authentication...');
-      const completeResponse = await fetch('/auth/login/complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          credential: serverCredential
-        })
-      });
-      
-      if (!completeResponse.ok) {
-        const error = await completeResponse.json();
-        throw new Error(error.detail || 'Failed to complete login');
-      }
-      
-      const result = await completeResponse.json();
-      
-      if (result.success) {
-        showSuccess('Login successful! Redirecting...');
-        
-        // Add smooth redirect with delay
-        setTimeout(() => {
-          window.location.href = result.redirect || '/profile';
-        }, 1000);
-      } else {
-        throw new Error('Login failed');
-      }
-      
-    } catch (error) {
-      // Hide passkey animation
-      passkeyAnimation.style.display = 'none';
-      showError('Error: ' + error.message);
-      console.error('Login error:', error);
+    // Step 1: Request authentication options from server
+    const startResponse = await fetch('/auth/login/begin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    
+    if (!startResponse.ok) {
+      const errorData = await startResponse.json();
+      throw new Error(errorData.detail || 'Failed to start authentication');
     }
+    
+    // Get authentication options
+    const optionsText = await startResponse.json();
+    console.log('Server response:', optionsText);
+    
+    const options = JSON.parse(optionsText);
+    console.log('Parsed options:', options);
+    
+    // Validate required fields
+    if (!options.challenge) {
+      throw new Error('Challenge missing from server response');
+    }
+    
+    if (!options.allowCredentials || !Array.isArray(options.allowCredentials) || options.allowCredentials.length === 0) {
+      throw new Error('No credentials found for this user');
+    }
+    
+    // Convert options for WebAuthn API
+    const publicKeyOptions = {
+      challenge: new Uint8Array(base64ToArrayBuffer(base64UrlToBase64(options.challenge))),
+      rpId: options.rpId,
+      timeout: options.timeout || 60000,
+      allowCredentials: options.allowCredentials.map(cred => ({
+        type: cred.type,
+        id: new Uint8Array(base64ToArrayBuffer(base64UrlToBase64(cred.id))),
+        transports: cred.transports || []
+      })),
+      userVerification: options.userVerification || 'preferred'
+    };
+    
+    console.log('Prepared options for WebAuthn API:', publicKeyOptions);
+    showStatus('Please follow your browser instructions to authenticate...', 'info');
+    
+    // Step 2: Use WebAuthn API to get credential
+    const credential = await navigator.credentials.get({
+      publicKey: publicKeyOptions
+    });
+    
+    console.log('WebAuthn credential received:', credential);
+    showStatus('Authentication successful, verifying with server...', 'info');
+    
+    // Step 3: Prepare credential for server
+    const serverCredential = {
+      id: credential.id,
+      rawId: arrayBufferToBase64Url(credential.rawId),
+      type: credential.type,
+      response: {
+        authenticatorData: arrayBufferToBase64Url(credential.response.authenticatorData),
+        clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
+        signature: arrayBufferToBase64Url(credential.response.signature),
+        userHandle: credential.response.userHandle 
+          ? arrayBufferToBase64Url(credential.response.userHandle) 
+          : null
+      }
+    };
+    
+    console.log('Prepared credential for server:', serverCredential);
+    
+    // Step 4: Send credential to server for verification
+    const verifyResponse = await fetch('/auth/login/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: serverCredential })
+    });
+    
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json();
+      throw new Error(errorData.detail || 'Failed to verify authentication');
+    }
+    
+    const result = await verifyResponse.json();
+    console.log('Server verification result:', result);
+    
+    // Handle successful login
+    showStatus('Login successful! Redirecting...', 'success');
+    
+    // Redirect to dashboard or profile
+    setTimeout(() => {
+      window.location.href = result.redirect || '/dashboard';
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    showStatus('Error: ' + error.message, 'danger');
+    showLoading(false);
+  }
+}
+
+// Set up form event listener
+document.addEventListener('DOMContentLoaded', () => {
+  const loginForm = document.getElementById('loginForm');
+  
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value.trim();
+    if (!username) {
+      showStatus('Please enter your username', 'warning');
+      return;
+    }
+    
+    startWebAuthnLogin(username);
   });
 });
 </script>

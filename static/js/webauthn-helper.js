@@ -16,23 +16,43 @@ function base64urlToArrayBuffer(base64url) {
   // Safety check to prevent errors with undefined values
   if (!base64url) {
     console.error("base64urlToArrayBuffer received undefined or null input");
-    return new ArrayBuffer(0);
+    throw new Error("Cannot convert undefined or null to ArrayBuffer");
+  }
+  
+  // Make sure we're working with a string
+  if (typeof base64url !== 'string') {
+    console.error("base64urlToArrayBuffer received non-string input:", typeof base64url);
+    throw new Error("Expected string input for base64urlToArrayBuffer");
   }
   
   try {
+    console.log("Converting base64url to ArrayBuffer:", base64url.substring(0, 10) + "...");
+    
+    // Replace URL-safe characters with base64 standard characters
     const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Add padding if needed
     const padLen = (4 - (base64.length % 4)) % 4;
     const padded = base64 + '='.repeat(padLen);
+    
+    // Convert to binary string
     const binary = atob(padded);
+    console.log(`Decoded base64 to binary string length: ${binary.length}`);
+    
+    // Create ArrayBuffer and view
     const buffer = new ArrayBuffer(binary.length);
     const bytes = new Uint8Array(buffer);
+    
+    // Fill with binary data
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
+    
+    console.log(`Successfully created ArrayBuffer of length: ${buffer.byteLength}`);
     return buffer;
   } catch (error) {
     console.error("Error in base64urlToArrayBuffer:", error, "for input:", base64url);
-    return new ArrayBuffer(0);
+    throw new Error(`Base64URL conversion error: ${error.message}`);
   }
 }
 
@@ -80,7 +100,7 @@ function prepareRegistrationOptions(options) {
 
 /**
  * Prepare WebAuthn authentication options for the browser
- * @param {Object} options - Authentication options from server
+ * @param {Object|string} options - Authentication options from server
  * @returns {Object} - Prepared options with ArrayBuffers
  */
 function prepareAuthenticationOptions(options) {
@@ -122,8 +142,18 @@ function prepareAuthenticationOptions(options) {
   // Create a deep copy to avoid modifying the original
   const preparedOptions = JSON.parse(JSON.stringify(parsedOptions));
   
+  // Debug logging to verify challenge exists
+  console.log("Challenge before conversion:", parsedOptions.challenge);
+  console.log("Challenge type:", typeof parsedOptions.challenge);
+  
   // Convert challenge to ArrayBuffer
-  preparedOptions.challenge = base64urlToArrayBuffer(parsedOptions.challenge);
+  try {
+    preparedOptions.challenge = base64urlToArrayBuffer(parsedOptions.challenge);
+    console.log("Challenge converted successfully to ArrayBuffer");
+  } catch (error) {
+    console.error("Error converting challenge to ArrayBuffer:", error);
+    throw new Error("Error processing authentication challenge");
+  }
   
   // Convert allowed credentials if present
   if (preparedOptions.allowCredentials) {
@@ -133,10 +163,15 @@ function prepareAuthenticationOptions(options) {
         throw new Error("Invalid credential format received from server");
       }
       
-      return {
-        ...cred,
-        id: base64urlToArrayBuffer(cred.id)
-      };
+      try {
+        return {
+          ...cred,
+          id: base64urlToArrayBuffer(cred.id)
+        };
+      } catch (error) {
+        console.error("Error converting credential ID to ArrayBuffer:", error, "for credential:", cred.id);
+        throw new Error("Error processing credential ID");
+      }
     });
   }
   
