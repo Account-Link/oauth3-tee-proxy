@@ -59,6 +59,24 @@ class TwitterGraphQLRoutes(RoutePlugin):
     
     service_name = "twitter/graphql"
     
+    def get_auth_requirements(self) -> dict:
+        """
+        Define authentication requirements for Twitter GraphQL routes.
+        
+        This method specifies which authentication types are required for
+        different GraphQL route patterns.
+        
+        Returns:
+            dict: Mapping of route patterns to required authentication types
+        """
+        return {
+            # GraphQL playground requires session authentication
+            "/playground": ["session"],
+            
+            # GraphQL query endpoints allow both OAuth2 and session authentication
+            "/*": ["oauth2", "session"]
+        }
+    
     def get_router(self) -> APIRouter:
         """
         Get the router for Twitter GraphQL routes.

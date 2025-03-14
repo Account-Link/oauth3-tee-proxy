@@ -51,6 +51,34 @@ class TwitterRoutes(RoutePlugin):
         """
         return self.create_routes()
     
+    def get_auth_requirements(self) -> dict:
+        """
+        Define authentication requirements for Twitter routes.
+        
+        This method specifies the authentication types required for different
+        Twitter route patterns. It supports both exact path matching and wildcard
+        patterns.
+        
+        Returns:
+            dict: Mapping of route patterns to required authentication types
+        """
+        return {
+            # Auth admin routes require session authentication
+            "/auth/admin": ["session"],
+            "/auth/admin/*": ["session"],
+            
+            # Cookie auth endpoints require session authentication
+            "/auth/cookies": ["session"],
+            
+            # Account routes require session authentication
+            "/accounts": ["session"],
+            "/accounts/*": ["session"],
+            
+            # API routes can use either OAuth2 or session auth
+            "/v1/*": ["oauth2", "session"],
+            "/graphql/*": ["oauth2", "session"]
+        }
+    
     def create_routes(self) -> APIRouter:
         """
         Create and return an API router with Twitter routes.

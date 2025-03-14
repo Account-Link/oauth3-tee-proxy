@@ -42,7 +42,6 @@ import os
 from typing import Dict, List, Type, Optional, Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
 
 from plugins import (
     AuthorizationPlugin,
@@ -50,10 +49,7 @@ from plugins import (
     RoutePlugin,
     get_authorization_plugin,
     get_resource_plugin,
-    get_route_plugin,
-    get_all_authorization_plugin_classes,
-    get_all_resource_plugin_classes,
-    get_all_route_plugin_classes
+    get_route_plugin
 )
 
 logger = logging.getLogger(__name__)
@@ -111,7 +107,7 @@ class PluginManager:
                 module_name = f"plugins.{item}"
                 if module_name not in self._loaded_plugins:
                     try:
-                        module = importlib.import_module(module_name)
+                        importlib.import_module(module_name)
                         self._loaded_plugins.add(module_name)
                         logger.info(f"Discovered plugin: {module_name}")
                         
@@ -340,6 +336,67 @@ class PluginManager:
                 logger.info(f"Found route plugin in resource plugin: {service_name}")
         
         return routers
+        
+    def get_auth_requirements(self) -> Dict[str, List[str]]:
+        """
+        Get authentication requirements from all route plugins.
+        
+        This method collects authentication requirements from all plugins that implement
+        the RoutePlugin interface. It calls get_auth_requirements() on each plugin and
+        merges the results into a single dictionary. Service-specific routes are prefixed
+        with the service name.
+        
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping route patterns to required auth types
+            
+        Example:
+            >>> auth_requirements = plugin_manager.get_auth_requirements()
+            >>> print(auth_requirements)
+            {"/twitter/graphql/*": ["oauth2", "session"], "/dashboard": ["session"]}
+        """
+        auth_requirements = {}
+        
+        # Add core route requirements (not from plugins)
+        core_requirements = {
+            "/dashboard": ["session"],
+            "/token": ["session"],
+            "/token/*": ["session"],
+        }
+        auth_requirements.update(core_requirements)
+        
+        # Process all RoutePlugin implementations
+        plugin_instances = []
+        
+        # Get dedicated route plugins
+        for service_name, plugin_class in self.get_all_route_plugins().items():
+            plugin_instances.append((service_name, plugin_class()))
+        
+        # Check authorization plugins that also implement RoutePlugin
+        for service_name, plugin_class in self.get_all_authorization_plugins().items():
+            if issubclass(plugin_class, RoutePlugin):
+                plugin_instances.append((service_name, plugin_class()))
+        
+        # Check resource plugins that also implement RoutePlugin
+        for service_name, plugin_class in self.get_all_resource_plugins().items():
+            if issubclass(plugin_class, RoutePlugin):
+                plugin_instances.append((service_name, plugin_class()))
+        
+        # Collect auth requirements from all plugins
+        for service_name, plugin in plugin_instances:
+            try:
+                plugin_requirements = plugin.get_auth_requirements()
+                
+                # Prefix routes with service name
+                for route, auth_types in plugin_requirements.items():
+                    prefixed_route = f"/{service_name}{route}"
+                    auth_requirements[prefixed_route] = auth_types
+                    
+                logger.info(f"Loaded auth requirements from plugin: {service_name}")
+            except Exception as e:
+                logger.error(f"Error getting auth requirements from plugin {service_name}: {e}")
+        
+        logger.info(f"Collected {len(auth_requirements)} auth requirements from plugins")
+        return auth_requirements
         
     def get_plugin_ui(self, plugin_name: str) -> Optional[Any]:
         """

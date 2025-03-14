@@ -433,6 +433,9 @@ def create_auth_middleware(app: ASGIApp) -> AuthMiddleware:
     authentication strategies and configuration. It's the main entry point for
     adding authentication to the application.
     
+    Auth requirements are collected from plugins via the plugin_manager,
+    allowing each plugin to specify its own authentication needs.
+    
     Args:
         app (ASGIApp): The ASGI application
         
@@ -461,15 +464,39 @@ def create_auth_middleware(app: ASGIApp) -> AuthMiddleware:
         "/webauthn/login/complete"
     ]
     
-    # Define authentication requirements for specific paths
-    auth_path_mapping = {
-        "/dashboard": [AuthType.SESSION],  # UI routes require session auth
-        "/token": [AuthType.SESSION],      # Token creation requires session auth
-        "/token/*": [AuthType.SESSION],    # Token management requires session auth
-        "/twitter/graphql*": [AuthType.OAUTH2, AuthType.SESSION],  # GraphQL accepts OAuth2 or session
-        "/twitter/v1/*": [AuthType.OAUTH2, AuthType.SESSION],      # API routes accept OAuth2 or session
-        "/telegram/*": [AuthType.OAUTH2, AuthType.SESSION]         # Telegram routes accept OAuth2 or session
-    }
+    # Get authentication requirements from plugins via plugin_manager
+    from plugin_manager import plugin_manager
+    
+    # Get auth requirements from plugins
+    plugin_auth_requirements = plugin_manager.get_auth_requirements()
+    
+    # Convert string auth types to AuthType enum
+    auth_path_mapping = {}
+    for path, auth_strings in plugin_auth_requirements.items():
+        auth_types = []
+        for auth_str in auth_strings:
+            if auth_str.lower() == "session":
+                auth_types.append(AuthType.SESSION)
+            elif auth_str.lower() == "oauth2":
+                auth_types.append(AuthType.OAUTH2)
+            elif auth_str.lower() == "none":
+                auth_types.append(AuthType.NONE)
+            elif auth_str.lower() == "any":
+                auth_types.append(AuthType.ANY)
+        
+        if auth_types:
+            auth_path_mapping[path] = auth_types
+    
+    # Add default auth for core paths if not defined by plugins
+    if "/dashboard" not in auth_path_mapping:
+        auth_path_mapping["/dashboard"] = [AuthType.SESSION]
+    if "/token" not in auth_path_mapping:
+        auth_path_mapping["/token"] = [AuthType.SESSION]
+    if "/token/*" not in auth_path_mapping:
+        auth_path_mapping["/token/*"] = [AuthType.SESSION]
+    
+    # Log auth requirements for debugging
+    logger.info(f"Auth requirements: {auth_path_mapping}")
     
     # Create middleware
     return AuthMiddleware(

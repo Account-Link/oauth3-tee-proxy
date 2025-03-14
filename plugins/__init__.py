@@ -277,6 +277,7 @@ class RoutePlugin(PluginBase):
     - Defining routes specific to their service
     - Handling HTTP requests for their service-specific endpoints
     - Implementing the necessary route handlers
+    - Specifying authentication requirements for their routes
     
     The routes provided by a plugin are mounted under the service name,
     e.g., "/[service]/..." to create appropriate namespacing.
@@ -305,6 +306,27 @@ class RoutePlugin(PluginBase):
             NotImplementedError: If the subclass doesn't implement this method
         """
         raise NotImplementedError("Subclasses must implement get_router")
+        
+    def get_auth_requirements(self) -> Dict[str, List[str]]:
+        """
+        Get authentication requirements for this plugin's routes.
+        
+        This method should return a dictionary mapping route patterns to
+        the authentication types required for those routes. Each route pattern
+        can be an exact path or a wildcard pattern (ending with *).
+        
+        Example:
+            {
+                "/exact/path": ["session"],
+                "/api/v1/*": ["oauth2", "session"],
+                "/public/*": ["none"]
+            }
+        
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping route patterns to required auth types
+        """
+        # Default implementation - no special auth requirements
+        return {}
 
 # Create directories if needed
 import os
