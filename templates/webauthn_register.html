@@ -85,6 +85,8 @@
             };
 
             console.log("Sending credential response:", credentialResponse);
+            console.log("Raw credential object:", credential);
+            console.log("JSON stringified:", JSON.stringify(credentialResponse));
 
             // Send response to server
             const verificationResponse = await fetch('/auth/register/complete', {

@@ -138,20 +138,59 @@ async def start_registration(
 async def complete_registration(
     request: Request,
     response: Response,
-    credential_response: CredentialResponse,
+    credential_response: CredentialResponse = None,
     device_name: Optional[str] = Form(None),
     passkey_service: PasskeyService = Depends(get_passkey_service),
     db: Session = Depends(get_db)
 ):
     """Complete passkey registration process."""
     try:
-        # For debugging
-        print(f"Received credential response: {credential_response}")
+        # Capture raw request for debugging
+        body = await request.body()
+        logger.info(f"[DEBUG] Raw request body: {body}")
         
+        # Log the endpoint being called
+        logger.info(f"[DEBUG] complete_registration endpoint called")
+        logger.info(f"[DEBUG] credential_response: {credential_response}")
+        logger.info(f"[DEBUG] Request content type: {request.headers.get('content-type')}")
+        logger.info(f"[DEBUG] Form data device_name: {device_name}")
+        
+        # Get expected session data 
+        challenge = request.session.get("registration_challenge")
+        temp_user_id = request.session.get("registering_user_id")
+        pending_registration = request.session.get("pending_registration")
+        
+        logger.info(f"[DEBUG] Session challenge: {challenge}")
+        logger.info(f"[DEBUG] Session user_id: {temp_user_id}")
+        logger.info(f"[DEBUG] Session pending_registration: {pending_registration}")
+        
+        # Handle the case where credential_response is None
+        if credential_response is None:
+            logger.error("[DEBUG] credential_response is None, trying to parse directly from body")
+            import json
+            try:
+                # Try to parse JSON directly from the body
+                data = json.loads(body)
+                logger.info(f"[DEBUG] Parsed JSON data: {data}")
+                
+                if 'credential' in data:
+                    logger.info("[DEBUG] Found credential in parsed JSON")
+                    credential_data = data['credential']
+                else:
+                    logger.error("[DEBUG] No credential found in parsed JSON")
+                    raise HTTPException(status_code=400, detail="Missing credential data in request")
+            except Exception as parse_error:
+                logger.error(f"[DEBUG] Error parsing request body as JSON: {str(parse_error)}")
+                raise HTTPException(status_code=400, detail=f"Failed to parse request: {str(parse_error)}") 
+        else:
+            credential_data = credential_response.credential
+            logger.info(f"[DEBUG] Using credential_data from Pydantic model: {credential_data}")
+        
+        # Now call the service with the credential data
         result = passkey_service.complete_registration(
             request=request,
             db=db,
-            credential_data=credential_response.credential,
+            credential_data=credential_data,
             device_name=device_name
         )
         
