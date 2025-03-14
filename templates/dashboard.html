@@ -2,121 +2,196 @@
 {% import "macros.html" as ui %}
 
 {% block title %}Dashboard - OAuth3 TEE Proxy{% endblock %}
-
 {% block page_title %}Welcome, {{ user.username }}{% endblock %}
 
-{% block header %}
-<header class="main-header d-flex justify-content-between align-items-center">
-    <h1 class="page-title">{{ self.page_title() }}</h1>
-    <div class="header-actions">
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
         {% if plugin_actions %}
             {% for action in plugin_actions %}
                 {{ action|safe }}
             {% endfor %}
         {% endif %}
     </div>
-</header>
-{% endblock %}
+</div>
 
-{% block content %}
 {# Available Plugins Section #}
-<div class="dashboard-section">
-    <h2>Available Plugins</h2>
-    {% if available_plugins and available_plugins.items() %}
-        <div class="plugins-grid">
-            {% for plugin_name, plugin_info in available_plugins.items() %}
-                <div class="plugin-card" data-plugin="{{ plugin_name }}">
-                    <div class="plugin-header" 
-                        {% if plugin_info.color %}
-                            style="background-color: {{ plugin_info.color }}; color: white;"
-                        {% elif plugin_name == "twitter" %}
-                            style="background-color: #1DA1F2; color: white;"
-                        {% elif plugin_name == "telegram" %}
-                            style="background-color: #0088cc; color: white;"
-                        {% endif %}>
-                        <h3 style="color: white;">{{ plugin_name|title }} Plugin</h3>
-                    </div>
-                    <div class="plugin-body">
-                        {% if plugin_info.description %}
-                            <p>{{ plugin_info.description }}</p>
-                        {% else %}
-                            <p>Provides integration with {{ plugin_name|title }} services.</p>
-                        {% endif %}
-                        
-                        {% if plugin_info.features %}
-                            <div class="plugin-features">
-                                <h4>Features</h4>
-                                <ul>
-                                    {% for feature in plugin_info.features %}
-                                        <li>{{ feature }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        {% endif %}
-                        
-                        {# Integrated Twitter Accounts Section #}
-                        {% if plugin_name == "twitter" %}
-                            <div class="plugin-accounts">
-                                <h4>Your Accounts {% if plugin_info.account_count and plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
-                                
-                                {% if plugin_info.accounts_html is defined %}
-                                    {{ plugin_info.accounts_html|safe }}
-                                {% else %}
-                                    <p>No Twitter accounts linked yet.</p>
-                                {% endif %}
-                                
-                                <div class="button-group mt-3">
-                                    <a href="/twitter/auth/admin" class="button">Add Twitter Account</a>
-                                    {% if plugin_info.account_count and plugin_info.account_count > 0 %}
-                                        <button onclick="deleteAllTwitterAccounts()" class="button delete-button">Delete All</button>
-                                    {% endif %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Available Plugins</h3>
+            </div>
+            <div class="card-body">
+                {% if available_plugins and available_plugins.items() %}
+                    <div class="row row-cards">
+                        {% for plugin_name, plugin_info in available_plugins.items() %}
+                            <div class="col-md-6">
+                                <div class="card" data-plugin="{{ plugin_name }}">
+                                    <div class="card-header" 
+                                        {% if plugin_info.color %}
+                                            style="background-color: {{ plugin_info.color }}; color: white;"
+                                        {% elif plugin_name == "twitter" %}
+                                            style="background-color: #1DA1F2; color: white;"
+                                        {% elif plugin_name == "telegram" %}
+                                            style="background-color: #0088cc; color: white;"
+                                        {% endif %}>
+                                        <h3 class="card-title" style="color: white;">{{ plugin_name|title }} Plugin</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if plugin_info.description %}
+                                            <p>{{ plugin_info.description }}</p>
+                                        {% else %}
+                                            <p>Provides integration with {{ plugin_name|title }} services.</p>
+                                        {% endif %}
+                                        
+                                        {% if plugin_info.features %}
+                                            <div class="mb-3">
+                                                <h4 class="card-subtitle">Features</h4>
+                                                <ul class="list-group list-group-flush mt-2">
+                                                    {% for feature in plugin_info.features %}
+                                                        <li class="list-group-item">{{ feature }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {# Integrated Twitter Accounts Section #}
+                                        {% if plugin_name == "twitter" %}
+                                            <div class="mb-3">
+                                                <h4 class="card-subtitle">Your Accounts {% if plugin_info.account_count and plugin_info.account_count > 0 %}({{ plugin_info.account_count }}){% endif %}</h4>
+                                                
+                                                {% if plugin_info.accounts_html is defined %}
+                                                    {{ plugin_info.accounts_html|safe }}
+                                                {% else %}
+                                                    <p class="text-muted">No Twitter accounts linked yet.</p>
+                                                {% endif %}
+                                                
+                                                <div class="d-flex gap-2 mt-3">
+                                                    <a href="/twitter/auth/admin" class="btn btn-primary">Add Twitter Account</a>
+                                                    {% if plugin_info.account_count and plugin_info.account_count > 0 %}
+                                                        <button onclick="deleteAllTwitterAccounts()" class="btn btn-danger">Delete All</button>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if plugin_info.urls %}
+                                            <div class="d-flex flex-wrap gap-2">
+                                                {% for label, url in plugin_info.urls.items() %}
+                                                    <a href="{{ url }}" class="btn btn-outline-primary" {% if label == "Documentation" %}target="_blank"{% endif %}>{{ label }}</a>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        {% endif %}
-                        
-                        {% if plugin_info.urls %}
-                            <div class="plugin-actions">
-                                {% for label, url in plugin_info.urls.items() %}
-                                    <a href="{{ url }}" class="button" {% if label == "Documentation" %}target="_blank"{% endif %}>{{ label }}</a>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
+                        {% endfor %}
                     </div>
-                </div>
-            {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">No plugins currently available.</div>
+                {% endif %}
+            </div>
         </div>
-    {% else %}
-        <div class="message">No plugins currently available.</div>
-    {% endif %}
+    </div>
 </div>
 
-{# We've moved plugin-specific components directly into the plugin cards above #}
-{# This section is no longer needed as all components are now integrated into their respective plugin cards #}
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">OAuth2 Access Tokens</h3>
+            </div>
+            <div class="card-body">
+                {% if oauth2_tokens %}
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>Token ID</th>
+                                    <th>Scopes</th>
+                                    <th>Created</th>
+                                    <th>Expires</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for token in oauth2_tokens %}
+                                    <tr>
+                                        <td>{{ token.id[:8] }}...</td>
+                                        <td>
+                                            {% if token.scopes %}
+                                                {% for scope in token.scopes.split() %}
+                                                    <span class="badge bg-blue me-1">{{ scope }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">No scopes</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ token.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            {% if token.expires_at %}
+                                                {{ token.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                                            {% else %}
+                                                Never
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                {% if token.token %}
+                                                    <button onclick="copyToken('{{ token.token }}')" class="btn btn-sm btn-outline-primary">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                            <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                                                            <path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"></path>
+                                                        </svg>
+                                                        Copy
+                                                    </button>
+                                                {% endif %}
+                                                <button onclick="revokeToken('{{ token.id }}')" class="btn btn-sm btn-outline-danger">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                        <line x1="4" y1="7" x2="20" y2="7"></line>
+                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
+                                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
+                                                    </svg>
+                                                    Revoke
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No active OAuth2 tokens.</p>
+                {% endif %}
 
-<div class="dashboard-section">
-    <h2>OAuth2 Access Tokens</h2>
-    {% if oauth2_tokens %}
-        <ul class="token-list">
-            {% for token in oauth2_tokens %}
-                {{ ui.oauth_token_card(token) }}
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No active OAuth2 tokens.</p>
-    {% endif %}
-
-    <form class="token-form" onsubmit="createToken(event)">
-        <select id="tokenScopes" multiple required>
-            {% for scope in available_scopes %}
-                <option value="{{ scope }}">{{ scope }}</option>
-            {% endfor %}
-        </select>
-        {{ ui.button('Create Token', '#', '', 'submit') }}
-    </form>
+                <div class="mt-4">
+                    <h4>Create New Token</h4>
+                    <form onsubmit="createToken(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Select Scopes</label>
+                            <select id="tokenScopes" class="form-select" multiple required>
+                                {% for scope in available_scopes %}
+                                    <option value="{{ scope }}">{{ scope }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-hint">Hold Ctrl/Cmd to select multiple scopes</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Token</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     async function createToken(event) {
         event.preventDefault();

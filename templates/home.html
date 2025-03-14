@@ -1,57 +1,127 @@
 {% extends "base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block page_title %}Welcome to OAuth3 TEE Proxy{% endblock %}
 
 {% block content %}
-<div class="jumbotron">
-  <h1 class="display-4">OAuth3 TEE Proxy</h1>
-  <p class="lead">A secure proxy service for managing authentication and authorization to various API services.</p>
-  <hr class="my-4">
-  <p>
-    Register with a passkey for password-less authentication and create API tokens with specific permissions to access services like Twitter and Telegram.
-  </p>
-  {% if not user %}
-  <div class="mt-4">
-    <a href="/auth/register" class="btn btn-primary btn-lg mr-2">Register with Passkey</a>
-    <a href="/auth/login" class="btn btn-outline-primary btn-lg">Login</a>
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="card-title">A secure proxy service for authentication and authorization</div>
+    <p class="text-muted">
+      Register with a passkey for password-less authentication and create API tokens with specific permissions to access services like Twitter and Telegram.
+    </p>
+    {% if not user %}
+    <div class="mt-4">
+      <a href="/auth/register" class="btn btn-primary me-2">Register with Passkey</a>
+      <a href="/auth/login" class="btn btn-outline-primary">Login</a>
+    </div>
+    {% else %}
+    <div class="mt-4">
+      <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+    </div>
+    {% endif %}
   </div>
-  {% else %}
-  <div class="mt-4">
-    <a href="/auth/profile" class="btn btn-primary btn-lg">Go to Profile</a>
-  </div>
-  {% endif %}
 </div>
 
-<div class="row mt-5">
+<div class="row row-cards">
   <div class="col-md-4">
-    <div class="card h-100">
+    <div class="card">
       <div class="card-body">
-        <h5 class="card-title">Passkey Authentication</h5>
-        <p class="card-text">
+        <div class="card-title">Passkey Authentication</div>
+        <div class="text-muted">
           Register and login using passkeys (WebAuthn) for secure, password-less authentication. 
           Multiple passkeys can be registered to a single account for device flexibility.
-        </p>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="d-flex align-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <path d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l6.558 -6.558l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z"></path>
+            <path d="M15 9h.01"></path>
+          </svg>
+          <span class="ms-2">Secure and easy to use</span>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card h-100">
+    <div class="card">
       <div class="card-body">
-        <h5 class="card-title">API Tokens</h5>
-        <p class="card-text">
+        <div class="card-title">API Tokens</div>
+        <div class="text-muted">
           Create API tokens with specific permissions through granular scopes.
           Tokens have a configurable expiration time and can be revoked at any time.
-        </p>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="d-flex align-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-api" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <path d="M4 13h5"></path>
+            <path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3"></path>
+            <path d="M20 8v8"></path>
+            <path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5"></path>
+          </svg>
+          <span class="ms-2">Fine-grained access control</span>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card h-100">
+    <div class="card">
       <div class="card-body">
-        <h5 class="card-title">Security Features</h5>
-        <p class="card-text">
+        <div class="card-title">Security Features</div>
+        <div class="text-muted">
           All authentication events are logged and visible to users. Comprehensive access logging and token management for enhanced security.
-        </p>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="d-flex align-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-shield-lock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"></path>
+            <path d="M12 11m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
+            <path d="M12 12l0 2.5"></path>
+          </svg>
+          <span class="ms-2">Comprehensive auditing</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h3 class="card-title">Available Services</h3>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+        <a href="/twitter" class="card card-link card-sm">
+          <div class="card-body text-center">
+            <div class="text-twitter mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c0 -.249 1.51 -2.772 1.818 -4.013z"></path>
+              </svg>
+            </div>
+            <div class="text-truncate">Twitter API</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+        <a href="/telegram" class="card card-link card-sm">
+          <div class="card-body text-center">
+            <div class="text-primary mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-telegram" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4"></path>
+              </svg>
+            </div>
+            <div class="text-truncate">Telegram API</div>
+          </div>
+        </a>
       </div>
     </div>
   </div>

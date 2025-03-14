@@ -5,70 +5,142 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}OAuth3 TEE Proxy{% endblock %}</title>
     
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    <!-- Tabler CSS -->
+    <link rel="stylesheet" href="/static/tabler/dist/css/tabler.min.css">
+    <link rel="stylesheet" href="/static/tabler/dist/css/tabler-flags.min.css">
+    <link rel="stylesheet" href="/static/tabler/dist/css/tabler-payments.min.css">
+    <link rel="stylesheet" href="/static/tabler/dist/css/tabler-vendors.min.css">
+    <link rel="stylesheet" href="/static/tabler/dist/css/demo.min.css">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/styles.css">
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">OAuth3 TEE Proxy</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav mr-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
-                    </li>
+<body class="theme-light">
+    <div class="page">
+        <!-- Header -->
+        <header class="navbar navbar-expand-md navbar-light d-print-none">
+            <div class="container-xl">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+                    <a href="/">
+                        OAuth3 TEE Proxy
+                    </a>
+                </h1>
+                <div class="navbar-nav flex-row order-md-last">
                     {% if request.state.user %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/auth/profile">Profile</a>
-                    </li>
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav">
-                    {% if request.state.user %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{ request.state.user.username or "User" }}
+                    <div class="nav-item dropdown">
+                        <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Open user menu">
+                            <div class="d-none d-xl-block ps-2">
+                                <div>{{ request.state.user.username or "User" }}</div>
+                                <div class="mt-1 small text-muted">User</div>
+                            </div>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
-                            <a class="dropdown-item" href="/auth/profile">Profile</a>
+                        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                            <a href="/auth/profile" class="dropdown-item">Profile</a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="/auth/logout">Logout</a>
+                            <a href="/auth/logout" class="dropdown-item">Logout</a>
                         </div>
-                    </li>
+                    </div>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/auth/login">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/auth/register">Register</a>
-                    </li>
+                    <div class="nav-item">
+                        <a href="/auth/login" class="nav-link px-3">Login</a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/auth/register" class="btn btn-primary">Register</a>
+                    </div>
                     {% endif %}
-                </ul>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navbar -->
+        <div class="navbar-expand-md">
+            <div class="collapse navbar-collapse" id="navbar-menu">
+                <div class="navbar navbar-light">
+                    <div class="container-xl">
+                        <ul class="navbar-nav">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/">
+                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                            <polyline points="5 12 3 12 12 3 21 12 19 12" />
+                                            <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                                            <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+                                        </svg>
+                                    </span>
+                                    <span class="nav-link-title">
+                                        Home
+                                    </span>
+                                </a>
+                            </li>
+                            {% if request.state.user %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="/dashboard">
+                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                            <rect x="4" y="4" width="16" height="16" rx="2" />
+                                            <line x1="4" y1="9" x2="20" y2="9" />
+                                            <line x1="12" y1="4" x2="12" y2="20" />
+                                        </svg>
+                                    </span>
+                                    <span class="nav-link-title">
+                                        Dashboard
+                                    </span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
-    </nav>
-    
-    <div class="container mt-4">
-        {% block content %}{% endblock %}
+        
+        <!-- Page content -->
+        <div class="page-wrapper">
+            <div class="container-xl">
+                <div class="page-header d-print-none">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h2 class="page-title">
+                                {% block page_title %}Welcome{% endblock %}
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="page-body">
+                <div class="container-xl">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <footer class="footer footer-transparent d-print-none">
+                <div class="container-xl">
+                    <div class="row text-center align-items-center flex-row-reverse">
+                        <div class="col-12 col-lg-auto mt-3 mt-lg-0">
+                            <ul class="list-inline list-inline-dots mb-0">
+                                <li class="list-inline-item">
+                                    OAuth3 TEE Proxy &copy; 2023-2025
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
     </div>
     
-    <footer class="footer mt-5">
-        <div class="container text-center py-3">
-            <span class="text-muted">OAuth3 TEE Proxy &copy; 2023-2025</span>
-        </div>
-    </footer>
-    
-    <!-- JavaScript -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Tabler JavaScript -->
+    <script src="/static/tabler/dist/js/tabler.min.js"></script>
+    <script src="/static/tabler/dist/js/demo.min.js"></script>
     
     {% block extra_js %}{% endblock %}
 </body>
