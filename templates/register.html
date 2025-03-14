@@ -2,13 +2,76 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+  .passkey-animation {
+    text-align: center;
+    margin: 20px 0;
+  }
+  
+  .passkey-icon {
+    font-size: 3rem;
+    animation: pulse 1.5s infinite ease-in-out;
+    color: #28a745;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.5; }
+  }
+  
+  .loading {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(40, 167, 69, 0.25);
+    border-top-color: #28a745;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+    margin-right: 0.5rem;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .features-list {
+    margin: 20px 0;
+    padding-left: 20px;
+  }
+  
+  .features-list li {
+    margin-bottom: 10px;
+    position: relative;
+    padding-left: 28px;
+  }
+  
+  .features-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="auth-container">
   <h1>Register with Passkey</h1>
   
   <p class="auth-intro">
-    Create a new account using a passkey. No password required! You can add your username and other details later.
+    Create a new account using a passkey — a more secure alternative to passwords.
+    Passkeys are unique digital keys that are stored securely on your device.
   </p>
+  
+  <ul class="features-list">
+    <li>No password to remember or reset</li>
+    <li>Works across your devices</li>
+    <li>More secure than passwords</li>
+    <li>Complete your profile after registration</li>
+  </ul>
   
   <form id="register-form" class="auth-form">
     <div class="form-group">
@@ -23,12 +86,20 @@
     </div>
     
     <div class="form-group">
-      <label for="device-name">Device Name (optional)</label>
+      <label for="device-name">Device Name</label>
       <input type="text" id="device-name" name="device_name" class="form-control" placeholder="e.g., iPhone, Work Laptop">
       <small class="form-text text-muted">A name to identify this device in your account.</small>
     </div>
     
-    <button type="submit" class="btn btn-primary" id="register-button">Register with Passkey</button>
+    <div class="passkey-animation" id="passkey-animation" style="display: none;">
+      <div class="passkey-icon">🔐</div>
+      <p>Create your passkey</p>
+    </div>
+    
+    <button type="submit" class="btn btn-success btn-lg btn-block" id="register-button">
+      <span id="button-text">Register with Passkey</span>
+      <span id="button-loading" style="display: none;"><span class="loading"></span>Processing...</span>
+    </button>
     
     <div class="form-message" id="register-message"></div>
   </form>
@@ -38,16 +109,70 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/webauthn-helper.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const registerForm = document.getElementById('register-form');
   const registerButton = document.getElementById('register-button');
   const registerMessage = document.getElementById('register-message');
+  const passkeyAnimation = document.getElementById('passkey-animation');
+  const buttonText = document.getElementById('button-text');
+  const buttonLoading = document.getElementById('button-loading');
+  
+  // Set default device name if empty
+  const deviceNameInput = document.getElementById('device-name');
+  if (!deviceNameInput.value) {
+    // Try to detect device type
+    const userAgent = navigator.userAgent;
+    let deviceName = "My Device";
+    
+    if (/iPhone|iPad|iPod/.test(userAgent)) {
+      deviceName = "My iPhone";
+      if (/iPad/.test(userAgent)) deviceName = "My iPad";
+      if (/iPod/.test(userAgent)) deviceName = "My iPod";
+    } else if (/Android/.test(userAgent)) {
+      deviceName = "My Android Device";
+    } else if (/Windows/.test(userAgent)) {
+      deviceName = "My Windows PC";
+    } else if (/Mac/.test(userAgent)) {
+      deviceName = "My Mac";
+    } else if (/Linux/.test(userAgent)) {
+      deviceName = "My Linux PC";
+    }
+    
+    deviceNameInput.value = deviceName;
+  }
+  
+  function showLoading(message) {
+    buttonText.style.display = 'none';
+    buttonLoading.style.display = 'inline';
+    registerButton.disabled = true;
+    registerMessage.textContent = message;
+  }
+  
+  function hideLoading() {
+    buttonText.style.display = 'inline';
+    buttonLoading.style.display = 'none';
+    registerButton.disabled = false;
+  }
+  
+  function showError(message) {
+    registerMessage.textContent = message;
+    registerMessage.style.color = '#dc3545';
+    hideLoading();
+  }
+  
+  function showSuccess(message) {
+    registerMessage.textContent = message;
+    registerMessage.style.color = '#28a745';
+  }
   
   registerForm.addEventListener('submit', async function(e) {
     e.preventDefault();
-    registerButton.disabled = true;
-    registerMessage.textContent = 'Starting registration...';
+    showLoading('Starting registration...');
     
     try {
       // Get form data
@@ -58,6 +183,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const username = usernameInput.value.trim();
       const displayName = displayNameInput.value.trim();
       const deviceName = deviceNameInput.value.trim();
+      
+      if (!deviceName) {
+        showError('Please enter a device name');
+        return;
+      }
       
       // Start registration
       const startResponse = await fetch('/auth/register/begin', {
@@ -78,44 +208,30 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const options = await startResponse.json();
       
-      // Convert base64 strings to ArrayBuffer
-      options.challenge = base64urlToArrayBuffer(options.challenge);
-      options.user.id = base64urlToArrayBuffer(options.user.id);
-      if (options.excludeCredentials) {
-        options.excludeCredentials = options.excludeCredentials.map(cred => {
-          return {
-            ...cred,
-            id: base64urlToArrayBuffer(cred.id)
-          };
-        });
-      }
+      // Show passkey animation
+      passkeyAnimation.style.display = 'block';
+      
+      // Prepare options for the browser
+      const preparedOptions = WebAuthnHelper.prepareRegistrationOptions(options);
       
       // Create credential in browser
       registerMessage.textContent = 'Please follow your browser\'s instructions to create a passkey...';
       const credential = await navigator.credentials.create({
-        publicKey: options
+        publicKey: preparedOptions
       });
       
+      // Hide passkey animation
+      passkeyAnimation.style.display = 'none';
+      
       // Prepare credential for sending to server
-      const regCredential = {
-        id: credential.id,
-        rawId: arrayBufferToBase64url(credential.rawId),
-        type: credential.type,
-        response: {
-          clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON),
-          attestationObject: arrayBufferToBase64url(credential.response.attestationObject)
-        },
-        transports: credential.response.getTransports ? credential.response.getTransports() : []
-      };
+      const serverCredential = WebAuthnHelper.prepareCredentialForServer(credential);
       
       // Complete registration
-      registerMessage.textContent = 'Completing registration...';
+      showLoading('Completing registration...');
       
       const formData = new FormData();
-      formData.append('credential', JSON.stringify(regCredential));
-      if (deviceName) {
-        formData.append('device_name', deviceName);
-      }
+      formData.append('credential', JSON.stringify(serverCredential));
+      formData.append('device_name', deviceName);
       
       const completeResponse = await fetch('/auth/register/complete', {
         method: 'POST',
@@ -130,43 +246,23 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await completeResponse.json();
       
       if (result.success) {
-        registerMessage.textContent = 'Registration successful! Redirecting...';
-        window.location.href = result.redirect || '/profile';
+        showSuccess('Registration successful! Redirecting...');
+        
+        // Add smooth redirect with delay
+        setTimeout(() => {
+          window.location.href = result.redirect || '/profile';
+        }, 1500);
       } else {
         throw new Error('Registration failed');
       }
       
     } catch (error) {
-      registerMessage.textContent = 'Error: ' + error.message;
+      // Hide passkey animation
+      passkeyAnimation.style.display = 'none';
+      showError('Error: ' + error.message);
       console.error('Registration error:', error);
-    } finally {
-      registerButton.disabled = false;
     }
   });
-  
-  // Helper functions for WebAuthn encoding/decoding
-  function base64urlToArrayBuffer(base64url) {
-    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-    const padLen = (4 - (base64.length % 4)) % 4;
-    const padded = base64 + '='.repeat(padLen);
-    const binary = atob(padded);
-    const buffer = new ArrayBuffer(binary.length);
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return buffer;
-  }
-  
-  function arrayBufferToBase64url(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  }
 });
 </script>
 {% endblock %}

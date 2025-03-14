@@ -12,51 +12,178 @@ body {
 /* Authentication Forms */
 .auth-container {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 2rem auto;
   padding: 2rem;
   border: 1px solid #ddd;
   border-radius: 8px;
   background-color: #f8f9fa;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.auth-container:hover {
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
 .auth-form {
   margin-top: 1.5rem;
 }
 
+.auth-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.auth-form label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.auth-form .form-control {
+  border-radius: 4px;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  transition: border-color 0.2s ease;
+}
+
+.auth-form .form-control:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.auth-form .btn {
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
 .auth-intro {
   color: #666;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
 }
 
 .auth-links {
   margin-top: 2rem;
   text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
 }
 
 .form-message {
   margin-top: 1rem;
-  padding: 0.5rem;
+  padding: 0.75rem;
   min-height: 2.5rem;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  transition: background-color 0.3s ease;
+}
+
+.form-message:not(:empty) {
+  background-color: #e2e3e5;
 }
 
 /* Profile Page */
 .profile-container {
-  margin-bottom: 3rem;
+  margin: 2rem auto 3rem;
+}
+
+.profile-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
 }
 
 .profile-tabs {
   margin-top: 2rem;
 }
 
+.nav-tabs {
+  border-bottom: 2px solid #dee2e6;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: #495057;
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  border-color: #e9ecef;
+  color: #007bff;
+}
+
+.nav-tabs .nav-link.active {
+  color: #007bff;
+  border-color: #007bff;
+  background-color: transparent;
+}
+
 .tab-content > .tab-pane {
   padding: 1.5rem 0;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .card {
   margin-bottom: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  color: #495057;
 }
 
 .passkey-list, .token-list, .access-log-list {
   margin: 1.5rem 0;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  font-weight: 600;
+  border-top: none;
+  color: #495057;
+}
+
+.table td, .table th {
+  padding: 1rem 0.75rem;
+  vertical-align: middle;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.2rem;
+}
+
+/* Animations for added elements */
+@keyframes highlightRow {
+  0% { background-color: rgba(0, 123, 255, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.highlight-row {
+  animation: highlightRow 2s ease;
 }
 
 /* Badges */
