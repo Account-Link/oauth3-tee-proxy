@@ -296,16 +296,49 @@ class PasskeyService:
         if not credentials:
             raise HTTPException(status_code=400, detail="No active credentials found for user")
         
+        # Log credential details for debugging
+        logger.info(f"Found {len(credentials)} active credentials for user {user.id}")
+        for cred in credentials:
+            logger.info(f"Credential ID: {cred.credential_id}, Transports: {cred.transports}")
+        
+        # Create allow_credentials list with extra validation
+        allow_credentials = []
+        for cred in credentials:
+            try:
+                # Validate credential_id exists and is valid base64url
+                if not cred.credential_id:
+                    logger.error(f"Missing credential_id for credential {cred.id}")
+                    continue
+                    
+                # Extract transports safely
+                transports = []
+                if cred.transports:
+                    try:
+                        transports_data = json.loads(cred.transports)
+                        if isinstance(transports_data, list):
+                            transports = [AuthenticatorTransport(t) for t in transports_data]
+                        else:
+                            logger.warning(f"Invalid transports format: {cred.transports}")
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse transports: {cred.transports}")
+                
+                # Create descriptor
+                descriptor = PublicKeyCredentialDescriptor(
+                    type=PublicKeyCredentialType.PUBLIC_KEY,
+                    id=base64url_to_bytes(cred.credential_id),
+                    transports=transports if transports else None
+                )
+                allow_credentials.append(descriptor)
+            except Exception as e:
+                logger.error(f"Error processing credential {cred.id}: {str(e)}")
+        
+        if not allow_credentials:
+            raise HTTPException(status_code=400, detail="No valid credentials found")
+            
         # Generate authentication options
         options = generate_authentication_options(
             rp_id=self.rp_id,
-            allow_credentials=[
-                PublicKeyCredentialDescriptor(
-                    type=PublicKeyCredentialType.PUBLIC_KEY,
-                    id=base64url_to_bytes(cred.credential_id),
-                    transports=[AuthenticatorTransport(t) for t in (json.loads(cred.transports) if cred.transports else [])]
-                ) for cred in credentials
-            ],
+            allow_credentials=allow_credentials,
             user_verification=UserVerificationRequirement.PREFERRED,
             timeout=60000,
         )
@@ -314,7 +347,15 @@ class PasskeyService:
         request.session["authentication_challenge"] = bytes_to_base64url(options.challenge)
         request.session["authenticating_user_id"] = user.id
         
-        return options_to_json(options)
+        # Convert options to JSON but catch any errors
+        try:
+            options_json = options_to_json(options)
+            # Log the response for debugging
+            logger.info(f"Authentication options JSON: {options_json[:100]}...")
+            return options_json
+        except Exception as e:
+            logger.error(f"Error converting options to JSON: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to generate authentication options")
     
     def complete_authentication(
         self,
@@ -341,18 +382,33 @@ class PasskeyService:
             raise HTTPException(status_code=400, detail="Authentication session expired")
         
         try:
-            # Get credential
+            # Get credential with detailed logging
+            logger.info(f"Authentication credential data: {credential_data}")
+            
             credential_id = credential_data.get("id")
             if not credential_id:
+                logger.error("Missing credential ID in authentication data")
                 raise HTTPException(status_code=400, detail="No credential ID provided")
             
+            logger.info(f"Looking up credential with ID: {credential_id} for user: {user_id}")
+            
+            # First try exact match
             credential = db.query(WebAuthnCredential).filter(
                 WebAuthnCredential.credential_id == credential_id,
                 WebAuthnCredential.user_id == user_id,
                 WebAuthnCredential.is_active == True
             ).first()
             
+            # If not found, log all credentials for this user for debugging
             if not credential:
+                all_user_creds = db.query(WebAuthnCredential).filter(
+                    WebAuthnCredential.user_id == user_id
+                ).all()
+                
+                logger.error(f"Credential not found. User has {len(all_user_creds)} credentials:")
+                for cred in all_user_creds:
+                    logger.error(f"  ID: {cred.id}, Credential ID: {cred.credential_id}, Active: {cred.is_active}")
+                
                 raise HTTPException(status_code=400, detail="Credential not found or inactive")
             
             # Verify the authentication response

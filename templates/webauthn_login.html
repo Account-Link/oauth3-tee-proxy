@@ -51,21 +51,46 @@
             });
 
             if (!optionsResponse.ok) {
-                const error = await optionsResponse.json();
-                throw new Error(error.detail || 'Failed to get authentication options');
+                const errorData = await optionsResponse.json();
+                console.error("Authentication options error:", errorData);
+                throw new Error(errorData.detail || 'Failed to get authentication options');
             }
 
-            const options = await optionsResponse.json();
+            // Parse options carefully
+            let optionsText = await optionsResponse.text();
+            console.log("Raw options response:", optionsText);
+            
+            let options;
+            try {
+                options = JSON.parse(optionsText);
+            } catch (parseError) {
+                console.error("Error parsing options:", parseError);
+                throw new Error("Failed to parse authentication options");
+            }
+            console.log("Received authentication options:", options);
             statusElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Verifying passkey...';
             
             // Convert base64url strings to ArrayBuffer
-            options.challenge = Uint8Array.from(base64urlDecode(options.challenge), c => c.charCodeAt(0));
+            if (options.challenge) {
+                options.challenge = Uint8Array.from(base64urlDecode(options.challenge), c => c.charCodeAt(0));
+            } else {
+                console.error("Challenge is missing in options");
+                throw new Error("Authentication challenge is missing");
+            }
             
             if (options.allowCredentials) {
-                options.allowCredentials = options.allowCredentials.map(cred => ({
-                    ...cred,
-                    id: Uint8Array.from(base64urlDecode(cred.id), c => c.charCodeAt(0))
-                }));
+                options.allowCredentials = options.allowCredentials.map(cred => {
+                    if (!cred || !cred.id) {
+                        console.error("Invalid credential in allowCredentials:", cred);
+                        throw new Error("Invalid credential format");
+                    }
+                    return {
+                        ...cred,
+                        id: Uint8Array.from(base64urlDecode(cred.id), c => c.charCodeAt(0))
+                    };
+                });
+            } else {
+                console.log("No allowCredentials in options");
             }
 
             // Get credentials
