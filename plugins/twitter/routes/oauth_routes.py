@@ -15,9 +15,20 @@ routes for:
 """
 
 import logging
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
+
+# Make sure environment variables are loaded
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    logging.info("OAuth routes: Loaded environment variables from .env file")
+    logging.info(f"TWITTER_CONSUMER_KEY: {os.environ.get('TWITTER_CONSUMER_KEY')}")
+    logging.info(f"TWITTER_CONSUMER_SECRET: {'SET' if os.environ.get('TWITTER_CONSUMER_SECRET') else 'NOT SET'}")
+except ImportError:
+    logging.warning("OAuth routes: python-dotenv not installed")
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, Response, Form
 from fastapi.responses import RedirectResponse
@@ -91,7 +102,13 @@ class TwitterOAuthRoutes(RoutePlugin):
             try:
                 # Import Twitter OAuth plugin
                 from plugin_manager import plugin_manager
-                twitter_oauth = plugin_manager.create_authorization_plugin("twitter_oauth")
+                from plugins import get_all_authorization_plugins
+
+                # Log registered plugins
+                logger.info(f"Available auth plugins: {list(get_all_authorization_plugins().keys())}")
+
+                twitter_oauth = plugin_manager.create_authorization_plugin("twitter-oauth")
+                logger.info(f"Found twitter-oauth plugin: {twitter_oauth is not None}")
                 
                 if not twitter_oauth:
                     raise HTTPException(
@@ -159,7 +176,13 @@ class TwitterOAuthRoutes(RoutePlugin):
             try:
                 # Import Twitter OAuth plugin
                 from plugin_manager import plugin_manager
-                twitter_oauth = plugin_manager.create_authorization_plugin("twitter_oauth")
+                from plugins import get_all_authorization_plugins
+
+                # Log registered plugins
+                logger.info(f"Available auth plugins: {list(get_all_authorization_plugins().keys())}")
+
+                twitter_oauth = plugin_manager.create_authorization_plugin("twitter-oauth")
+                logger.info(f"Found twitter-oauth plugin: {twitter_oauth is not None}")
                 
                 if not twitter_oauth:
                     raise HTTPException(
@@ -215,7 +238,17 @@ class TwitterOAuthRoutes(RoutePlugin):
                     elif auth_flow == "link":
                         # Linking to existing user
                         user_id = request.session.get("user_id")
+                        logger.debug(f"Link flow 1 - Session user_id: {user_id}")
+                        
+                        # Also try to get user from JWT
+                        user_from_jwt = getattr(request.state, "user", None)
+                        logger.debug(f"Link flow 1 - JWT user: {user_from_jwt is not None}")
+                        if user_from_jwt:
+                            user_id = user_from_jwt.id
+                            logger.debug(f"Link flow 1 - Using JWT user_id: {user_id}")
+                            
                         if not user_id:
+                            logger.error("Link flow 1 - No authenticated user found!")
                             raise HTTPException(
                                 status_code=401,
                                 detail="Not authenticated"
@@ -362,9 +395,37 @@ class TwitterOAuthRoutes(RoutePlugin):
             Returns:
                 RedirectResponse: Redirect to Twitter's authorization page
             """
-            # Check if user is logged in
+            # Check if user is logged in using either session or JWT
             user_id = request.session.get("user_id")
+            logger.debug(f"Session user_id: {user_id}")
+            
+            # Also try to get user from JWT
+            user_from_jwt = getattr(request.state, "user", None)
+            logger.debug(f"JWT user: {user_from_jwt is not None}")
+            if user_from_jwt:
+                user_id = user_from_jwt.id
+                logger.debug(f"Using JWT user_id: {user_id}")
+            
+            # Check cookie-based authentication with access_token cookie
             if not user_id:
+                try:
+                    from auth.jwt_service import validate_token
+                    access_token = request.cookies.get("access_token")
+                    if access_token:
+                        logger.debug(f"Found access_token cookie, validating...")
+                        db = next(get_db())
+                        token_data = validate_token(access_token, db, request)
+                        if token_data and token_data.get("user"):
+                            user_id = token_data["user"].id
+                            logger.debug(f"Using JWT cookie auth with user_id: {user_id}")
+                except Exception as e:
+                    logger.error(f"Error validating access_token cookie: {str(e)}")
+                
+            if not user_id:
+                logger.debug("No authenticated user found - Auth headers: " + str(request.headers.get("Authorization")))
+                logger.debug("State attributes: " + str(dir(request.state)))
+                logger.debug("Session keys: " + str(list(request.session.keys())))
+                logger.debug(f"Cookies: {list(request.cookies.keys())}")
                 raise HTTPException(
                     status_code=401,
                     detail="Not authenticated"
@@ -373,7 +434,13 @@ class TwitterOAuthRoutes(RoutePlugin):
             try:
                 # Import Twitter OAuth plugin
                 from plugin_manager import plugin_manager
-                twitter_oauth = plugin_manager.create_authorization_plugin("twitter_oauth")
+                from plugins import get_all_authorization_plugins
+
+                # Log registered plugins
+                logger.info(f"Available auth plugins: {list(get_all_authorization_plugins().keys())}")
+
+                twitter_oauth = plugin_manager.create_authorization_plugin("twitter-oauth")
+                logger.info(f"Found twitter-oauth plugin: {twitter_oauth is not None}")
                 
                 if not twitter_oauth:
                     raise HTTPException(

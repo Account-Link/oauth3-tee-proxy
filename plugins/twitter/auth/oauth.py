@@ -74,10 +74,13 @@ class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
         twitter_consumer_key = settings.TWITTER_CONSUMER_KEY or main_settings.TWITTER_CONSUMER_KEY
         twitter_consumer_secret = settings.TWITTER_CONSUMER_SECRET or main_settings.TWITTER_CONSUMER_SECRET
         
+        logger.info("Initializing Twitter OAuth plugin")
+        logger.info(f"Twitter settings from plugin: {settings.dict()}")
+        logger.info(f"Twitter settings from main: CONSUMER_KEY={main_settings.TWITTER_CONSUMER_KEY}, CONSUMER_SECRET={'***' if main_settings.TWITTER_CONSUMER_SECRET else 'NOT SET'}")
+        logger.info(f"Twitter callback URL from config: {settings.TWITTER_OAUTH_CALLBACK_URL or main_settings.TWITTER_OAUTH_CALLBACK_URL}")
+        
         if not twitter_consumer_key or not twitter_consumer_secret:
-            logger.warning("Twitter OAuth plugin initialized without API keys")
-            logger.info(f"Twitter settings from plugin: {settings.dict()}")
-            logger.info(f"Twitter settings from main: CONSUMER_KEY={main_settings.TWITTER_CONSUMER_KEY}, CONSUMER_SECRET=***")
+            logger.warning("⚠️ Twitter OAuth plugin initialized without API keys - OAuth authentication will not work!")
     
     def get_oauth_handler(self, callback_url: Optional[str] = None) -> tweepy.OAuth1UserHandler:
         """
@@ -89,14 +92,28 @@ class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
         Returns:
             tweepy.OAuth1UserHandler: Configured OAuth handler
         """
-        # Use values from main settings if plugin settings are empty
-        consumer_key = settings.TWITTER_CONSUMER_KEY or main_settings.TWITTER_CONSUMER_KEY
-        consumer_secret = settings.TWITTER_CONSUMER_SECRET or main_settings.TWITTER_CONSUMER_SECRET
+        # Try environment variables directly first
+        import os
+        consumer_key = os.environ.get('TWITTER_CONSUMER_KEY')
+        consumer_secret = os.environ.get('TWITTER_CONSUMER_SECRET')
+        
+        # Fall back to settings if not in environment
+        if not consumer_key:
+            consumer_key = settings.TWITTER_CONSUMER_KEY or main_settings.TWITTER_CONSUMER_KEY
+        if not consumer_secret:
+            consumer_secret = settings.TWITTER_CONSUMER_SECRET or main_settings.TWITTER_CONSUMER_SECRET
+            
         oauth_callback = callback_url or settings.TWITTER_OAUTH_CALLBACK_URL or main_settings.TWITTER_OAUTH_CALLBACK_URL
         
         # Log the settings values for debugging
         logger.info(f"Using Twitter Consumer Key: {consumer_key}")
+        logger.info(f"Using Twitter Consumer Secret: {'*****' if consumer_secret else 'NOT SET'}")
         logger.info(f"Using Twitter OAuth Callback URL: {oauth_callback}")
+        
+        if not consumer_key or not consumer_secret:
+            logger.error("Missing Twitter OAuth credentials! Check your environment variables TWITTER_CONSUMER_KEY and TWITTER_CONSUMER_SECRET")
+            logger.error(f"Environment contains: {', '.join(k for k in os.environ.keys() if 'TWITTER' in k)}")
+            raise ValueError("Twitter OAuth credentials not configured. Please set TWITTER_CONSUMER_KEY and TWITTER_CONSUMER_SECRET environment variables.")
         
         return tweepy.OAuth1UserHandler(
             consumer_key,

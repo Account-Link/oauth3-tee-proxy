@@ -1,6 +1,7 @@
 # Standard library imports
 import logging
 import uuid
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -25,6 +26,7 @@ from auth.middleware import AuthMiddleware
 
 # Plugin system
 from plugin_manager import plugin_manager
+import plugins
 
 # Apply patches
 from patches import apply_patches
@@ -44,6 +46,21 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Get settings
 settings = get_settings()
+
+# Log environment variables for debugging
+logger.info(f"ENV TWITTER_CONSUMER_KEY: {os.environ.get('TWITTER_CONSUMER_KEY')}")
+logger.info(f"ENV TWITTER_CONSUMER_SECRET: {os.environ.get('TWITTER_CONSUMER_SECRET') is not None}")
+logger.info(f"CONFIG TWITTER_CONSUMER_KEY: {settings.TWITTER_CONSUMER_KEY}")
+logger.info(f"CONFIG TWITTER_CONSUMER_SECRET: {settings.TWITTER_CONSUMER_SECRET is not None}")
+
+# Load settings from .env file
+try:
+    from dotenv import load_dotenv
+    logger.info("Loading .env file manually")
+    load_dotenv()
+    logger.info(f"After dotenv: TWITTER_CONSUMER_KEY={os.environ.get('TWITTER_CONSUMER_KEY')}")
+except ImportError:
+    logger.warning("python-dotenv not installed, skipping explicit .env loading")
 
 # Initialize database
 Base.metadata.create_all(bind=engine)
@@ -97,6 +114,12 @@ from ui_routes.webauthn_routes import router as webauthn_router
 
 # Initialize plugins first
 plugin_manager.discover_plugins()
+
+# Debug plugins
+from plugins import get_all_authorization_plugins, get_all_resource_plugins, get_all_route_plugin_classes
+logger.info(f"AVAILABLE AUTH PLUGINS: {list(get_all_authorization_plugins().keys())}")
+logger.info(f"AVAILABLE RESOURCE PLUGINS: {list(get_all_resource_plugins().keys())}")
+logger.info(f"AVAILABLE ROUTE PLUGINS: {list(get_all_route_plugin_classes().keys())}")
 
 # Get plugin scopes and update API router
 plugin_scopes = plugin_manager.get_all_plugin_scopes()

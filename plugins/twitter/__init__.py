@@ -79,7 +79,7 @@ register_resource_plugin("twitter-v1", TwitterV1ResourcePlugin)
 register_route_plugin("twitter", TwitterRoutes)
 register_route_plugin("twitter-graphql", TwitterGraphQLRoutes)
 register_route_plugin("twitter-v1", TwitterV1Routes)
-register_route_plugin("twitter-oauth", TwitterOAuthRoutes)
+# OAuth routes are now included in the main Twitter routes
 
 # Apply patches to the Twitter library
 from .patches import apply_patches

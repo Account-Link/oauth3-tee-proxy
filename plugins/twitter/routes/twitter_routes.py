@@ -132,6 +132,11 @@ class TwitterRoutes(RoutePlugin):
         cookie_auth_router = create_cookie_auth_router()
         router.include_router(cookie_auth_router, prefix="/auth/cookies")
         
+        # Create and include OAuth routes
+        from .oauth_routes import TwitterOAuthRoutes
+        oauth_router = TwitterOAuthRoutes().get_router()
+        router.include_router(oauth_router, prefix="/oauth")
+        
         # Include the account routes with appropriate prefix
         account_router = create_account_router()
         router.include_router(account_router, prefix="/accounts")

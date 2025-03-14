@@ -452,6 +452,49 @@ TWITTER_CONSUMER_SECRET=your_consumer_secret
 TWITTER_OAUTH_CALLBACK_URL=http://localhost:8000/twitter/oauth/callback
 ```
 
+### Twitter OAuth Setup Guide
+
+To enable Twitter OAuth authentication:
+
+1. Create a Twitter Developer Account:
+   - Go to [Twitter Developer Portal](https://developer.twitter.com/)
+   - Sign up for a developer account if you don't have one
+
+2. Create a Twitter App:
+   - In the Developer Portal, go to "Projects & Apps" > "Create App"
+   - Name your app something like "OAuth3 TEE Proxy"
+   - Select the appropriate app type and use case
+
+3. Configure OAuth Settings:
+   - In your app settings, go to "Settings" > "Authentication settings"
+   - Enable "OAuth 1.0a"
+   - Set the callback URL to: `http://localhost:8000/twitter/oauth/callback`
+   - Request email address access if needed
+   - Save your settings
+
+4. Copy API Keys:
+   - From the "Keys and tokens" tab, copy the:
+     - API Key (Consumer Key)
+     - API Key Secret (Consumer Secret)
+
+5. Add to `.env` File:
+   ```bash
+   TWITTER_CONSUMER_KEY=your_consumer_key
+   TWITTER_CONSUMER_SECRET=your_consumer_secret
+   TWITTER_OAUTH_CALLBACK_URL=http://localhost:8000/twitter/oauth/callback
+   ```
+
+6. Restart the Server:
+   - Restart the OAuth3 TEE Proxy server to load the new settings
+
+7. Test the OAuth Flow:
+   - Go to `/twitter/auth/admin`
+   - Click on the "OAuth Authentication" tab
+   - Click "Connect with Twitter"
+   - You should be redirected to Twitter to authorize your app
+
+**Note**: Twitter OAuth 1.0a tokens don't expire, so once a user authorizes your app, they won't need to re-authorize unless they explicitly revoke access.
+
 ## Database Migrations
 
 The Twitter plugin requires database migrations to set up the necessary tables and columns. Run the following command to apply the migrations:
