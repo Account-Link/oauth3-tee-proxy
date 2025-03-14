@@ -227,7 +227,7 @@ async def login_page(request: Request):
 @router.post("/login/begin")
 async def start_login(
     request: Request,
-    username: Optional[str] = None,
+    username: Optional[str] = Form(None),
     passkey_service: PasskeyService = Depends(get_passkey_service),
     db: Session = Depends(get_db)
 ):
@@ -236,7 +236,7 @@ async def start_login(
         # For debugging
         body = await request.body()
         logger.info(f"[DEBUG] Raw login request body: {body}")
-        logger.info(f"[DEBUG] Login request username: {username}")
+        logger.info(f"[DEBUG] Login request username from form: {username}")
         logger.info(f"[DEBUG] Login request content type: {request.headers.get('content-type')}")
 
         # Try to extract username from JSON body if not provided as form data
@@ -254,7 +254,8 @@ async def start_login(
         
         # Check if user exists directly in DB
         if username:
-            user = db.query(User).filter(User.username == username).first()
+            # Case-insensitive search
+            user = db.query(User).filter(User.username.ilike(username)).first()
             logger.info(f"[DEBUG] User in DB: {user.id if user else None}")
         
         options = passkey_service.start_authentication(
@@ -262,6 +263,18 @@ async def start_login(
             db=db,
             username=username
         )
+        
+        # For form submissions, return HTML with redirect
+        if request.headers.get('content-type', '').startswith('multipart/form-data'):
+            return HTMLResponse(f"""
+                <html>
+                <head>
+                    <meta http-equiv="refresh" content="0;url=/auth/login?options={options}">
+                </head>
+                <body>Redirecting...</body>
+                </html>
+            """)
+            
         return options
     except Exception as e:
         logger.error(f"Login start failed: {str(e)}")

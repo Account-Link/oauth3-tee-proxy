@@ -126,9 +126,16 @@ document.addEventListener('DOMContentLoaded', function() {
       // Show passkey animation
       passkeyAnimation.style.display = 'block';
       
+      // Convert FormData to JSON for better compatibility
+      const jsonData = { username: username };
+      console.log("Sending login request with data:", jsonData);
+      
       const startResponse = await fetch('/auth/login/begin', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(jsonData)
       });
       
       if (!startResponse.ok) {
