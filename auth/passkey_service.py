@@ -289,7 +289,7 @@ class PasskeyService:
                 PublicKeyCredentialDescriptor(
                     type=PublicKeyCredentialType.PUBLIC_KEY,
                     id=base64url_to_bytes(cred.credential_id),
-                    transports=[AuthenticatorTransport(t) for t in json.loads(cred.transports) if cred.transports else []]
+                    transports=[AuthenticatorTransport(t) for t in (json.loads(cred.transports) if cred.transports else [])]
                 ) for cred in credentials
             ],
             user_verification=UserVerificationRequirement.PREFERRED,

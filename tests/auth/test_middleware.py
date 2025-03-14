@@ -6,16 +6,20 @@ This module contains tests for the authentication middleware.
 """
 
 import pytest
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.testclient import TestClient
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from datetime import datetime, timedelta
 
+from database import get_db, Base
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean
+
+# Import directly from models.py instead of redefining
+from models import User, JWTToken
+
 from auth.middleware import AuthMiddleware, get_current_user
 from auth.jwt_service import create_token
-from models import User, JWTToken
-from database import get_db
 
 class TestAuthMiddleware:
     """Test cases for authentication middleware."""

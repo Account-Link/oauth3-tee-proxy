@@ -10,9 +10,16 @@ import pytest
 from datetime import datetime, timedelta
 import jwt
 
-from auth.jwt_service import create_token, validate_token, revoke_token, revoke_all_user_tokens
+# Import User and JWTToken directly from database module for testing
+# This avoids SQLAlchemy relationship errors with plugin models
+from database import get_db, Base
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean
+
+# Import directly from models.py instead of redefining
 from models import User, JWTToken
-from database import get_db
+
+# Import the functions to test
+from auth.jwt_service import create_token, validate_token, revoke_token, revoke_all_user_tokens
 
 class TestJWTService:
     """Test cases for JWT token service."""
