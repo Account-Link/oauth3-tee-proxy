@@ -63,20 +63,41 @@ class TwitterRoutes(RoutePlugin):
             dict: Mapping of route patterns to required authentication types
         """
         return {
-            # Auth admin routes require session authentication
-            "/auth/admin": ["session"],
-            "/auth/admin/*": ["session"],
+            # Auth admin routes require passkey authentication
+            "/auth/admin": ["passkey"],
+            "/auth/admin/*": ["passkey"],
             
-            # Cookie auth endpoints require session authentication
-            "/auth/cookies": ["session"],
+            # Cookie auth endpoints require passkey authentication
+            "/auth/cookies": ["passkey"],
             
-            # Account routes require session authentication
-            "/accounts": ["session"],
-            "/accounts/*": ["session"],
+            # Account routes require passkey authentication
+            "/accounts": ["passkey"],
+            "/accounts/*": ["passkey"],
             
-            # API routes can use either OAuth2 or session auth
-            "/v1/*": ["oauth2", "session"],
-            "/graphql/*": ["oauth2", "session"]
+            # API routes can use either API token or passkey auth
+            "/v1/*": ["api", "passkey"],
+            "/graphql/*": ["api", "passkey"]
+        }
+    
+    def get_jwt_policy_scopes(self) -> dict:
+        """
+        Define JWT policy to scopes mapping for Twitter plugin.
+        
+        This method defines custom JWT policies for Twitter with pre-defined
+        sets of scopes. These policies can be used to create JWT tokens with
+        specific Twitter-related permissions.
+        
+        Returns:
+            dict: Mapping of policy names to sets of scopes
+        """
+        return {
+            "twitter-read-only": {"tweet.read", "twitter.graphql.read", "twitter.v1.read"},
+            "twitter-post-only": {"tweet.post"},
+            "twitter-full-access": {
+                "tweet.read", "tweet.post", "tweet.delete",
+                "twitter.graphql", "twitter.graphql.read", "twitter.graphql.write",
+                "twitter.v1", "twitter.v1.read", "twitter.v1.write"
+            }
         }
     
     def create_routes(self) -> APIRouter:

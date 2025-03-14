@@ -70,11 +70,27 @@ class TwitterGraphQLRoutes(RoutePlugin):
             dict: Mapping of route patterns to required authentication types
         """
         return {
-            # GraphQL playground requires session authentication
-            "/playground": ["session"],
+            # GraphQL playground requires passkey authentication
+            "/playground": ["passkey"],
             
-            # GraphQL query endpoints allow both OAuth2 and session authentication
-            "/*": ["oauth2", "session"]
+            # GraphQL query endpoints allow both API token and passkey authentication
+            "/*": ["api", "passkey"]
+        }
+        
+    def get_jwt_policy_scopes(self) -> dict:
+        """
+        Define JWT policy to scopes mapping for GraphQL plugin.
+        
+        This method defines JWT policies specific to GraphQL operations with
+        pre-defined sets of scopes.
+        
+        Returns:
+            dict: Mapping of policy names to sets of scopes
+        """
+        return {
+            "graphql-read-only": {"twitter.graphql.read"},
+            "graphql-write-only": {"twitter.graphql.write"},
+            "graphql-full-access": {"twitter.graphql", "twitter.graphql.read", "twitter.graphql.write"}
         }
     
     def get_router(self) -> APIRouter:

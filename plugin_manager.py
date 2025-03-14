@@ -358,9 +358,12 @@ class PluginManager:
         
         # Add core route requirements (not from plugins)
         core_requirements = {
-            "/dashboard": ["session"],
-            "/token": ["session"],
-            "/token/*": ["session"],
+            "/profile": ["passkey"],
+            "/profile/*": ["passkey"],
+            "/auth/profile": ["passkey"],
+            "/auth/profile/*": ["passkey"],
+            "/auth/passkeys/*": ["passkey"],
+            "/auth/tokens/*": ["passkey"],
         }
         auth_requirements.update(core_requirements)
         
@@ -389,7 +392,18 @@ class PluginManager:
                 # Prefix routes with service name
                 for route, auth_types in plugin_requirements.items():
                     prefixed_route = f"/{service_name}{route}"
-                    auth_requirements[prefixed_route] = auth_types
+                    
+                    # Convert old "session" auth type to "passkey"
+                    updated_auth_types = []
+                    for auth_type in auth_types:
+                        if auth_type.lower() == "session":
+                            updated_auth_types.append("passkey")
+                        elif auth_type.lower() == "oauth2":
+                            updated_auth_types.append("api")
+                        else:
+                            updated_auth_types.append(auth_type)
+                            
+                    auth_requirements[prefixed_route] = updated_auth_types
                     
                 logger.info(f"Loaded auth requirements from plugin: {service_name}")
             except Exception as e:
@@ -397,6 +411,68 @@ class PluginManager:
         
         logger.info(f"Collected {len(auth_requirements)} auth requirements from plugins")
         return auth_requirements
+        
+    def get_jwt_policy_scopes(self) -> Dict[str, Set[str]]:
+        """
+        Get JWT policy to scopes mapping from all plugins.
+        
+        This method collects JWT policy to scopes mappings from all plugins that
+        implement the RoutePlugin interface. It allows plugins to define custom JWT
+        policies with pre-defined sets of scopes.
+        
+        Returns:
+            Dict[str, Set[str]]: Dictionary mapping policy names to sets of scopes
+            
+        Example:
+            >>> policy_scopes = plugin_manager.get_jwt_policy_scopes()
+            >>> print(policy_scopes)
+            {"twitter-read-only": {"tweet.read"}, "telegram-admin": {"telegram.post_any"}}
+        """
+        policy_scopes = {
+            "passkey": set(),  # Default policy for passkey authentication
+            "api": set()  # Default policy for API tokens
+        }
+        
+        # Process all RoutePlugin implementations
+        plugin_instances = []
+        
+        # Get dedicated route plugins
+        for service_name, plugin_class in self.get_all_route_plugins().items():
+            plugin_instances.append((service_name, plugin_class()))
+        
+        # Check authorization plugins that also implement RoutePlugin
+        for service_name, plugin_class in self.get_all_authorization_plugins().items():
+            if issubclass(plugin_class, RoutePlugin):
+                plugin_instances.append((service_name, plugin_class()))
+        
+        # Check resource plugins that also implement RoutePlugin
+        for service_name, plugin_class in self.get_all_resource_plugins().items():
+            if issubclass(plugin_class, RoutePlugin):
+                plugin_instances.append((service_name, plugin_class()))
+        
+        # Collect JWT policy scopes from all plugins
+        for service_name, plugin in plugin_instances:
+            try:
+                plugin_policy_scopes = plugin.get_jwt_policy_scopes()
+                
+                # Merge policies
+                for policy, scopes in plugin_policy_scopes.items():
+                    if policy in policy_scopes:
+                        # Merge scopes for existing policies
+                        policy_scopes[policy].update(scopes)
+                    else:
+                        # Add new policy
+                        policy_scopes[policy] = set(scopes)
+                    
+                logger.info(f"Loaded JWT policy scopes from plugin: {service_name}")
+            except Exception as e:
+                logger.error(f"Error getting JWT policy scopes from plugin {service_name}: {e}")
+                
+        # Add all available scopes to the 'api' policy
+        policy_scopes["api"] = set(self.get_all_plugin_scopes().keys())
+        
+        logger.info(f"Collected {len(policy_scopes)} JWT policies from plugins")
+        return policy_scopes
         
     def get_plugin_ui(self, plugin_name: str) -> Optional[Any]:
         """
