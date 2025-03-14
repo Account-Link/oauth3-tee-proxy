@@ -13,16 +13,27 @@
  * @returns {ArrayBuffer} - Decoded ArrayBuffer
  */
 function base64urlToArrayBuffer(base64url) {
-  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-  const padLen = (4 - (base64.length % 4)) % 4;
-  const padded = base64 + '='.repeat(padLen);
-  const binary = atob(padded);
-  const buffer = new ArrayBuffer(binary.length);
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  // Safety check to prevent errors with undefined values
+  if (!base64url) {
+    console.error("base64urlToArrayBuffer received undefined or null input");
+    return new ArrayBuffer(0);
   }
-  return buffer;
+  
+  try {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padLen = (4 - (base64.length % 4)) % 4;
+    const padded = base64 + '='.repeat(padLen);
+    const binary = atob(padded);
+    const buffer = new ArrayBuffer(binary.length);
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return buffer;
+  } catch (error) {
+    console.error("Error in base64urlToArrayBuffer:", error, "for input:", base64url);
+    return new ArrayBuffer(0);
+  }
 }
 
 /**
@@ -73,12 +84,40 @@ function prepareRegistrationOptions(options) {
  * @returns {Object} - Prepared options with ArrayBuffers
  */
 function prepareAuthenticationOptions(options) {
+  // Log the options for debugging
+  console.log("Preparing authentication options:", JSON.stringify(options));
+  
+  // Safety check for undefined options
+  if (!options) {
+    console.error("prepareAuthenticationOptions received undefined or null options");
+    throw new Error("Authentication options were not received properly from the server");
+  }
+  
+  // Ensure we have required fields
+  if (!options.challenge) {
+    console.error("Authentication options missing challenge");
+    throw new Error("Authentication challenge is missing");
+  }
+  
+  if (!options.allowCredentials || !Array.isArray(options.allowCredentials) || options.allowCredentials.length === 0) {
+    console.error("Authentication options missing allowCredentials");
+    throw new Error("No credentials found for this user");
+  }
+  
+  // Create a deep copy to avoid modifying the original
+  const preparedOptions = JSON.parse(JSON.stringify(options));
+  
   // Convert challenge to ArrayBuffer
-  options.challenge = base64urlToArrayBuffer(options.challenge);
+  preparedOptions.challenge = base64urlToArrayBuffer(options.challenge);
   
   // Convert allowed credentials if present
-  if (options.allowCredentials) {
-    options.allowCredentials = options.allowCredentials.map(cred => {
+  if (preparedOptions.allowCredentials) {
+    preparedOptions.allowCredentials = preparedOptions.allowCredentials.map(cred => {
+      if (!cred.id) {
+        console.error("Credential missing ID:", cred);
+        throw new Error("Invalid credential format received from server");
+      }
+      
       return {
         ...cred,
         id: base64urlToArrayBuffer(cred.id)
@@ -86,7 +125,8 @@ function prepareAuthenticationOptions(options) {
     });
   }
   
-  return options;
+  console.log("Prepared authentication options ready");
+  return preparedOptions;
 }
 
 /**
