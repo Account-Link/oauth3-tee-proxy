@@ -1,99 +1,151 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Database Migration Script
 ========================
 
-This script performs a migration to add new columns to the TwitterAccount model.
-It adds username, display_name, and profile_image_url columns to store Twitter profile information.
+This script migrates the database from the old schema to the new schema.
+It adds the new tables for JWTToken and AuthAccessLog, and updates the User model.
 """
 
-import sqlite3
 import logging
 import sys
-from pathlib import Path
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
 
-# Configure logging
+from sqlalchemy import Column, String, Boolean, DateTime, MetaData, Table, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, relationship
+from sqlalchemy.sql import text
+
+from database import engine, get_db
+from models import Base, User, WebAuthnCredential, JWTToken, AuthAccessLog
+
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Path to SQLite database
-DB_PATH = Path('oauth3.db')
-
-def check_columns(conn, table_name, expected_columns):
-    """Check if columns exist in a table"""
-    cursor = conn.cursor()
-    cursor.execute(f"PRAGMA table_info({table_name})")
-    existing_columns = {row[1] for row in cursor.fetchall()}
+def migrate_tables():
+    """Create new tables and migrate data."""
+    logger.info("Starting database migration...")
     
-    missing_columns = [col for col in expected_columns if col not in existing_columns]
-    return missing_columns
-
-def add_columns(conn, table_name, columns):
-    """Add columns to a table"""
-    cursor = conn.cursor()
-    for column, column_type in columns.items():
-        try:
-            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column} {column_type}")
-            logger.info(f"Added column '{column}' to table '{table_name}'")
-        except sqlite3.Error as e:
-            logger.error(f"Error adding column '{column}': {e}")
-            raise
-
-def main():
-    # Confirm with the user
-    if len(sys.argv) <= 1 or sys.argv[1] != "--confirm":
-        print("This script will migrate the database to add new columns.")
-        print("Run with --confirm to proceed.")
-        return
+    # Create metadata objects
+    metadata = MetaData()
     
-    if not DB_PATH.exists():
-        logger.error(f"Database file not found: {DB_PATH}")
-        return
-
-    logger.info(f"Connecting to database: {DB_PATH}")
+    # Get current tables from database
+    metadata.reflect(bind=engine)
+    existing_tables = metadata.tables.keys()
     
+    logger.info(f"Existing tables: {', '.join(existing_tables)}")
+    
+    # Check if new tables need to be created
+    new_tables = []
+    if "jwt_tokens" not in existing_tables:
+        new_tables.append("jwt_tokens")
+    if "auth_access_logs" not in existing_tables:
+        new_tables.append("auth_access_logs")
+    
+    # Create new tables
+    if new_tables:
+        logger.info(f"Creating new tables: {', '.join(new_tables)}")
+        Base.metadata.create_all(bind=engine)
+        logger.info("New tables created successfully")
+    else:
+        logger.info("No new tables to create")
+    
+    # Now check if we need to migrate columns in the users table
+    db = next(get_db())
+    need_user_update = False
+    
+    # Check if email column exists
     try:
-        with sqlite3.connect(str(DB_PATH)) as conn:
-            # Check if twitter_accounts table exists
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='twitter_accounts'")
-            
-            if not cursor.fetchone():
-                logger.error("Table 'twitter_accounts' does not exist")
-                return
-            
-            # Check which columns we need to add
-            missing_columns = check_columns(
-                conn, 
-                'twitter_accounts', 
-                ['username', 'display_name', 'profile_image_url']
-            )
-            
-            if not missing_columns:
-                logger.info("All required columns already exist. No migration needed.")
-                return
-                
-            logger.info(f"Missing columns: {missing_columns}")
-            
-            # Add missing columns
-            columns_to_add = {
-                'username': 'TEXT',
-                'display_name': 'TEXT',
-                'profile_image_url': 'TEXT'
-            }
-            
-            # Filter to only include missing columns
-            columns_to_add = {k: v for k, v in columns_to_add.items() if k in missing_columns}
-            
-            add_columns(conn, 'twitter_accounts', columns_to_add)
-            
-            logger.info("Migration completed successfully")
-            
-    except sqlite3.Error as e:
-        logger.error(f"Database error: {e}")
+        db.execute(text("SELECT email FROM users LIMIT 1"))
+        logger.info("Email column already exists")
+    except:
+        need_user_update = True
+        logger.info("Email column needs to be added")
     
+    # Add columns if needed
+    if need_user_update:
+        logger.info("Adding new columns to users table")
+        try:
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR"))
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR"))
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_address VARCHAR"))
+            db.execute(text("ALTER TABLE users ALTER COLUMN username DROP NOT NULL"))
+            logger.info("Users table updated successfully")
+        except Exception as e:
+            logger.error(f"Error updating users table: {str(e)}")
+    
+    # Check if webauthn_credentials needs updates
+    need_credentials_update = False
+    
+    # Check if device_name column exists
+    try:
+        db.execute(text("SELECT device_name FROM webauthn_credentials LIMIT 1"))
+        logger.info("device_name column already exists")
+    except:
+        need_credentials_update = True
+        logger.info("device_name column needs to be added")
+    
+    # Add columns if needed
+    if need_credentials_update:
+        logger.info("Adding new columns to webauthn_credentials table")
+        try:
+            db.execute(text("ALTER TABLE webauthn_credentials ADD COLUMN IF NOT EXISTS device_name VARCHAR"))
+            db.execute(text("ALTER TABLE webauthn_credentials ADD COLUMN IF NOT EXISTS attestation_type VARCHAR"))
+            db.execute(text("ALTER TABLE webauthn_credentials ADD COLUMN IF NOT EXISTS aaguid VARCHAR"))
+            db.execute(text("ALTER TABLE webauthn_credentials ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+            logger.info("webauthn_credentials table updated successfully")
+        except Exception as e:
+            logger.error(f"Error updating webauthn_credentials table: {str(e)}")
+    
+    # Migrate OAuth2 tokens to JWT tokens if oauth2_tokens table exists
+    if "oauth2_tokens" in existing_tables:
+        logger.info("Migrating OAuth2 tokens to JWT tokens")
+        try:
+            # Get all active OAuth2 tokens
+            oauth2_tokens = db.execute(text("SELECT * FROM oauth2_tokens WHERE is_active = TRUE")).fetchall()
+            logger.info(f"Found {len(oauth2_tokens)} active OAuth2 tokens")
+            
+            # Convert to JWT tokens
+            for token in oauth2_tokens:
+                new_token = JWTToken(
+                    token_id=token.token_id,
+                    user_id=token.user_id,
+                    policy="api",
+                    scopes=token.scopes,
+                    is_active=token.is_active,
+                    created_at=token.created_at,
+                    expires_at=token.expires_at or (datetime.utcnow() + timedelta(hours=48))
+                )
+                db.add(new_token)
+            
+            db.commit()
+            logger.info("OAuth2 tokens migrated successfully")
+        except Exception as e:
+            logger.error(f"Error migrating OAuth2 tokens: {str(e)}")
+    
+    # Create default device names for existing credentials
+    try:
+        # Get all credentials without device names
+        credentials = db.execute(text("SELECT id FROM webauthn_credentials WHERE device_name IS NULL")).fetchall()
+        logger.info(f"Found {len(credentials)} credentials without device names")
+        
+        for i, cred in enumerate(credentials):
+            db.execute(
+                text("UPDATE webauthn_credentials SET device_name = :name, is_active = TRUE WHERE id = :id"),
+                {"name": f"Device {i+1}", "id": cred.id}
+            )
+        
+        db.commit()
+        logger.info("Default device names created")
+    except Exception as e:
+        logger.error(f"Error creating default device names: {str(e)}")
+    
+    logger.info("Database migration completed")
+
 if __name__ == "__main__":
-    main()
+    migrate_tables()

@@ -1,36 +1,58 @@
-# OAuth3 Twitter Cookie Service
+# OAuth3 TEE Proxy
 
-A service for managing Twitter cookies with safety filtering and OAuth2 token support.
+A secure proxy service for managing authentication and authorization to various API services with passkey support and JWT-based authentication.
 
-AI Agents are used to posting with a Twitter `auth_token` using the undocumented API. This is as powerful as being logged in with the user's twitter account.
+## Overview
 
-This is great when the account owner manages their own agent, but if the agent is managed by an external dev, then an `auth_token` cookie is too much authority to share.
+The OAuth3 TEE Proxy provides a secure, non-custodial authentication system that enables users to:
 
-In other words, this breaks down when "hiring in the swarm."
+1. Register and login using passkeys (WebAuthn)
+2. Manage multiple passkeys on a single account
+3. Create and manage API tokens with specific permissions
+4. View a comprehensive access log for security monitoring
+5. Revoke tokens and manage active sessions
 
-So, we want to have a simple non-custodial Dstack app that gives limited access tokens to a twitter account.
+## Authentication System
 
-<img src="https://github.com/user-attachments/assets/95f36db6-9577-4c30-9c13-4e586eb65e94" width="70%"/>
+The authentication system uses a combination of passkeys (WebAuthn) and JWT tokens:
 
+### Passkey Authentication
 
-## 1. Submit Twitter Cookie
-   
-<img src="https://github.com/user-attachments/assets/28905327-a5ce-4b53-84d2-6ba4cc0d0cbf" width="50%"/>
+- Users register using passkeys without requiring a username upfront
+- Multiple passkeys can be registered to a single account
+- Each passkey has detailed metadata (device name, creation date, last used)
+- Passkeys can be added, removed, and renamed from the user profile
 
-## 2. Create OAuth2 Tokens
+### JWT Token Authentication
 
-OAuth2 tokens provide granular control through scopes:
+- All authentication uses JWT tokens with a 2-hour expiration
+- Tokens contain minimal user data (user_id, policy, token_id)
+- Tokens are automatically refreshed when accessed via sessions within 30 minutes of expiry
+- All tokens can be viewed and revoked from the user profile
+- "Log out other devices" functionality to revoke all tokens except the current one
+
+### Profile Management
+
+- Users can update their profile information after registration
+- Optional fields include: username, email, phone number, wallet address
+- All profile changes are logged for security
+
+## API Token System
+
+API tokens provide granular control through scopes:
 - `tweet.post` - Permission to post tweets
 - `telegram.post_any` - Permission to post any message to Telegram
+- (Additional scopes provided by plugins)
 
-## 3. Use the Token to Access APIs
+## Security Features
 
-<img src="https://github.com/user-attachments/assets/c4af65cf-1fe9-4015-b57c-6776a43816d1" width="50%"/>
+- All authentication events are logged and visible to users
+- Comprehensive access logging for security monitoring
+- Tokens can be individually revoked or all revoked at once
+- Each token has a unique ID stored in the database for tracking
+- Sessions automatically refresh tokens before expiry
 
-<img src="https://github.com/user-attachments/assets/56d3a416-49ad-4514-acff-f246cea32e7d" width="49%"/>
-
-
-# Setup
+## Setup
 
 1. Install dependencies:
 ```bash
@@ -42,19 +64,23 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-# OAuth2 Scopes
+3. Visit http://localhost:8000 to access the application
 
-The following scopes are available:
+## Plugin System
 
-- `tweet.post`: Allows posting tweets
-- `telegram.post_any`: Allows posting to any connected Telegram channel
+The OAuth3 TEE Proxy uses a plugin system for integrating with different services:
 
-OAuth2 tokens:
-- Are tied to the account owner's session
-- Have a 24-hour expiration by default
-- Support multiple scopes per token
-- Provide granular access control
+- Each service (Twitter, Telegram, etc.) is implemented as a plugin
+- Plugins define their own scopes, routes, and authentication requirements
+- New services can be added by creating new plugins without modifying the core code
 
-### Acknowledgments
-Josh @hashwarlock for PRD review and architecture diagram 
-Shaw for setting the requirements and user story
+## Development
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the development server: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
+4. Run tests: `pytest`
+
+## License
+
+[MIT License](LICENSE)

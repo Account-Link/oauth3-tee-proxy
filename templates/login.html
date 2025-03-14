@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <h1>Login with Passkey</h1>
+  
+  <form id="login-form" class="auth-form">
+    <div class="form-group">
+      <label for="username">Username (optional if using platform authenticator)</label>
+      <input type="text" id="username" name="username" class="form-control">
+    </div>
+    
+    <button type="submit" class="btn btn-primary" id="login-button">Login with Passkey</button>
+    
+    <div class="form-message" id="login-message"></div>
+  </form>
+  
+  <div class="auth-links">
+    <p>Don't have an account? <a href="/auth/register">Register with Passkey</a></p>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const loginForm = document.getElementById('login-form');
+  const loginButton = document.getElementById('login-button');
+  const loginMessage = document.getElementById('login-message');
+  
+  loginForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    loginButton.disabled = true;
+    loginMessage.textContent = 'Starting login...';
+    
+    try {
+      // Get username if provided
+      const usernameInput = document.getElementById('username');
+      const username = usernameInput.value.trim();
+      
+      // Start authentication
+      const formData = new FormData();
+      if (username) {
+        formData.append('username', username);
+      }
+      
+      const startResponse = await fetch('/auth/login/begin', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!startResponse.ok) {
+        const error = await startResponse.json();
+        throw new Error(error.detail || 'Failed to start login');
+      }
+      
+      const options = await startResponse.json();
+      
+      // Convert base64 strings to ArrayBuffer
+      options.challenge = base64urlToArrayBuffer(options.challenge);
+      options.allowCredentials = options.allowCredentials.map(cred => {
+        return {
+          ...cred,
+          id: base64urlToArrayBuffer(cred.id)
+        };
+      });
+      
+      // Get authentication from browser
+      loginMessage.textContent = 'Please follow your browser\'s instructions to authenticate...';
+      const credential = await navigator.credentials.get({
+        publicKey: options
+      });
+      
+      // Prepare credential for sending to server
+      const authCredential = {
+        id: credential.id,
+        rawId: arrayBufferToBase64url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON),
+          authenticatorData: arrayBufferToBase64url(credential.response.authenticatorData),
+          signature: arrayBufferToBase64url(credential.response.signature),
+          userHandle: credential.response.userHandle ? arrayBufferToBase64url(credential.response.userHandle) : null
+        }
+      };
+      
+      // Complete authentication
+      loginMessage.textContent = 'Verifying authentication...';
+      const completeResponse = await fetch('/auth/login/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          credential: authCredential
+        })
+      });
+      
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json();
+        throw new Error(error.detail || 'Failed to complete login');
+      }
+      
+      const result = await completeResponse.json();
+      
+      if (result.success) {
+        loginMessage.textContent = 'Login successful! Redirecting...';
+        window.location.href = result.redirect || '/profile';
+      } else {
+        throw new Error('Login failed');
+      }
+      
+    } catch (error) {
+      loginMessage.textContent = 'Error: ' + error.message;
+      console.error('Login error:', error);
+    } finally {
+      loginButton.disabled = false;
+    }
+  });
+  
+  // Helper functions for WebAuthn encoding/decoding
+  function base64urlToArrayBuffer(base64url) {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padLen = (4 - (base64.length % 4)) % 4;
+    const padded = base64 + '='.repeat(padLen);
+    const binary = atob(padded);
+    const buffer = new ArrayBuffer(binary.length);
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return buffer;
+  }
+  
+  function arrayBufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+});
+</script>
+{% endblock %}

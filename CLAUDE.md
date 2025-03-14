@@ -31,6 +31,18 @@
 - Organize functions alphabetically by function name within the same file or scope
 - Router files should only contain route definitions, request validation, and dependency injection - business logic belongs in separate modules
 
+## AUTHENTICATION PRINCIPLES
+- Maintain a strong separation of concerns with dedicated modules for authentication logic
+- Use JWT tokens for authentication with appropriate expiration (2 hours default)
+- Store only essential data in JWT payload (user_id, policy, token_id)
+- Include proper token rotation with 30-minute buffer for session tokens
+- Always log authentication events for user visibility and security
+- Implement proper revocation mechanisms for all authentication tokens
+- Keep WebAuthn/passkey implementation clean with clear business logic separation
+- Document all security decisions and authentication flow comprehensively
+- Follow SOLID principles for all authentication-related code
+- Minimize JWT payload size and never include sensitive user information
+
 ## PLUGIN ARCHITECTURE
 - Each integration should be implemented as a plugin with these components:
   - Authorization plugin: Handles authentication with resource servers

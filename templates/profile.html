@@ -1,0 +1,747 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+  <h1>Your Profile</h1>
+  
+  <div class="profile-tabs">
+    <ul class="nav nav-tabs" id="profile-tabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="profile-info-tab" data-toggle="tab" href="#profile-info" role="tab">Profile Info</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="passkeys-tab" data-toggle="tab" href="#passkeys" role="tab">Passkeys</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="tokens-tab" data-toggle="tab" href="#tokens" role="tab">Access Tokens</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="access-log-tab" data-toggle="tab" href="#access-log" role="tab">Access Log</a>
+      </li>
+    </ul>
+    
+    <div class="tab-content" id="profile-tab-content">
+      <!-- Profile Information Tab -->
+      <div class="tab-pane fade show active" id="profile-info" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Profile Information</h5>
+            <form id="profile-form">
+              <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" value="{{ user.username or '' }}">
+              </div>
+              
+              <div class="form-group">
+                <label for="display-name">Display Name</label>
+                <input type="text" id="display-name" name="display_name" class="form-control" value="{{ user.display_name or '' }}">
+              </div>
+              
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" class="form-control" value="{{ user.email or '' }}">
+              </div>
+              
+              <div class="form-group">
+                <label for="phone-number">Phone Number</label>
+                <input type="text" id="phone-number" name="phone_number" class="form-control" value="{{ user.phone_number or '' }}" placeholder="+1234567890">
+              </div>
+              
+              <div class="form-group">
+                <label for="wallet-address">Base Wallet Address</label>
+                <input type="text" id="wallet-address" name="wallet_address" class="form-control" value="{{ user.wallet_address or '' }}" placeholder="0x...">
+              </div>
+              
+              <button type="submit" class="btn btn-primary" id="update-profile-button">Update Profile</button>
+              <div class="form-message" id="profile-message"></div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Passkeys Tab -->
+      <div class="tab-pane fade" id="passkeys" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Your Passkeys</h5>
+            <p class="card-text">Manage the passkeys associated with your account. You can add new passkeys, rename them, or remove them.</p>
+            
+            <div class="passkey-list">
+              {% if passkeys %}
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Device Name</th>
+                        <th>Created</th>
+                        <th>Last Used</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for passkey in passkeys %}
+                      <tr>
+                        <td>{{ passkey.device_name }}</td>
+                        <td>{{ passkey.created_at }}</td>
+                        <td>{{ passkey.last_used_at or 'Never' }}</td>
+                        <td>
+                          {% if passkey.is_active %}
+                          <span class="badge badge-success">Active</span>
+                          {% else %}
+                          <span class="badge badge-danger">Inactive</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <button class="btn btn-sm btn-outline-secondary rename-passkey-btn" data-id="{{ passkey.id }}">Rename</button>
+                          <button class="btn btn-sm btn-outline-danger remove-passkey-btn" data-id="{{ passkey.id }}">Remove</button>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p>No passkeys found. Add a new passkey to secure your account.</p>
+              {% endif %}
+            </div>
+            
+            <button class="btn btn-primary" id="add-passkey-button">Add New Passkey</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Access Tokens Tab -->
+      <div class="tab-pane fade" id="tokens" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Active Sessions & Tokens</h5>
+            <p class="card-text">Manage your active sessions and API tokens. You can revoke individual tokens or all tokens at once.</p>
+            
+            <div class="token-list">
+              {% if tokens %}
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Last Used</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for token in tokens %}
+                      <tr>
+                        <td>
+                          {% if token.policy == 'passkey' %}
+                          <span class="badge badge-info">Session</span>
+                          {% else %}
+                          <span class="badge badge-warning">API Token</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ token.created_at }}</td>
+                        <td>{{ token.expires_at }}</td>
+                        <td>{{ token.last_used_at or 'Never' }}</td>
+                        <td>
+                          <button class="btn btn-sm btn-outline-danger revoke-token-btn" data-id="{{ token.token_id }}">Revoke</button>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <button class="btn btn-warning" id="revoke-all-tokens-button">Revoke All Other Sessions</button>
+              {% else %}
+                <p>No active tokens found.</p>
+              {% endif %}
+            </div>
+            
+            <h5 class="card-title mt-4">Create API Token</h5>
+            <p class="card-text">Create a new API token with specific permissions.</p>
+            
+            <form id="create-token-form">
+              <div class="form-group">
+                <label>Available Scopes</label>
+                <div class="scopes-checkboxes">
+                  <!-- Scopes will be populated dynamically -->
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="scope-tweet-post" name="scopes" value="tweet.post">
+                    <label class="form-check-label" for="scope-tweet-post">tweet.post - Post tweets to Twitter</label>
+                  </div>
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="scope-telegram-post" name="scopes" value="telegram.post_any">
+                    <label class="form-check-label" for="scope-telegram-post">telegram.post_any - Post to Telegram channels</label>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="token-description">Token Description</label>
+                <input type="text" id="token-description" name="description" class="form-control" placeholder="e.g., Production API, Development Token">
+              </div>
+              
+              <div class="form-group">
+                <label for="token-expiry">Expires After (hours)</label>
+                <input type="number" id="token-expiry" name="expiry_hours" class="form-control" value="48" min="1" max="720">
+                <small class="form-text text-muted">Maximum 30 days (720 hours)</small>
+              </div>
+              
+              <button type="submit" class="btn btn-primary" id="create-token-button">Create Token</button>
+              <div class="form-message" id="token-message"></div>
+            </form>
+            
+            <div id="new-token-container" class="mt-3" style="display: none;">
+              <div class="alert alert-warning">
+                <h5>Your New Token</h5>
+                <p>Copy this token now. You won't be able to see it again!</p>
+                <div class="input-group">
+                  <input type="text" id="new-token" class="form-control" readonly>
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" id="copy-token-button">Copy</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Access Log Tab -->
+      <div class="tab-pane fade" id="access-log" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Recent Access Activity</h5>
+            <p class="card-text">Review recent activity on your account for security purposes.</p>
+            
+            <div class="access-log-list">
+              {% if access_logs %}
+                <div class="table-responsive">
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Action</th>
+                        <th>Device</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for log in access_logs %}
+                      <tr>
+                        <td>{{ log.timestamp }}</td>
+                        <td>
+                          {% if log.action == 'login' %}
+                          <span class="badge badge-info">Login</span>
+                          {% elif log.action == 'register' %}
+                          <span class="badge badge-success">Register</span>
+                          {% elif log.action == 'token_create' %}
+                          <span class="badge badge-warning">Token Created</span>
+                          {% elif log.action == 'token_use' %}
+                          <span class="badge badge-primary">Token Used</span>
+                          {% elif log.action == 'token_revoke' %}
+                          <span class="badge badge-danger">Token Revoked</span>
+                          {% elif log.action == 'token_revoke_all' %}
+                          <span class="badge badge-danger">All Tokens Revoked</span>
+                          {% elif log.action == 'profile_update' %}
+                          <span class="badge badge-secondary">Profile Updated</span>
+                          {% else %}
+                          <span class="badge badge-light">{{ log.action }}</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ log.user_agent }}</td>
+                        <td>{{ log.ip_address }}</td>
+                        <td>
+                          {% if log.success %}
+                          <span class="badge badge-success">Success</span>
+                          {% else %}
+                          <span class="badge badge-danger">Failed</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p>No activity logs found.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Passkey Modal -->
+<div class="modal fade" id="add-passkey-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add New Passkey</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="add-passkey-form">
+          <div class="form-group">
+            <label for="new-device-name">Device Name</label>
+            <input type="text" id="new-device-name" name="device_name" class="form-control" placeholder="e.g., iPhone, Work Laptop">
+          </div>
+          
+          <div class="form-message" id="add-passkey-message"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="start-add-passkey">Add Passkey</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Passkey Modal -->
+<div class="modal fade" id="rename-passkey-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Rename Passkey</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="rename-passkey-form">
+          <input type="hidden" id="rename-passkey-id">
+          <div class="form-group">
+            <label for="rename-device-name">Device Name</label>
+            <input type="text" id="rename-device-name" name="device_name" class="form-control">
+          </div>
+          
+          <div class="form-message" id="rename-passkey-message"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submit-rename-passkey">Update Name</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Profile form submission
+  const profileForm = document.getElementById('profile-form');
+  const profileMessage = document.getElementById('profile-message');
+  
+  profileForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    profileMessage.textContent = 'Updating profile...';
+    
+    const formData = {
+      username: document.getElementById('username').value.trim() || null,
+      display_name: document.getElementById('display-name').value.trim() || null,
+      email: document.getElementById('email').value.trim() || null,
+      phone_number: document.getElementById('phone-number').value.trim() || null,
+      wallet_address: document.getElementById('wallet-address').value.trim() || null
+    };
+    
+    try {
+      const response = await fetch('/auth/profile/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update profile');
+      }
+      
+      const result = await response.json();
+      profileMessage.textContent = 'Profile updated successfully!';
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        profileMessage.textContent = '';
+      }, 3000);
+      
+    } catch (error) {
+      profileMessage.textContent = 'Error: ' + error.message;
+    }
+  });
+  
+  // Add passkey functionality
+  const addPasskeyButton = document.getElementById('add-passkey-button');
+  const addPasskeyModal = document.getElementById('add-passkey-modal');
+  const startAddPasskeyButton = document.getElementById('start-add-passkey');
+  const addPasskeyMessage = document.getElementById('add-passkey-message');
+  
+  addPasskeyButton.addEventListener('click', function() {
+    $('#add-passkey-modal').modal('show');
+  });
+  
+  startAddPasskeyButton.addEventListener('click', async function() {
+    const deviceName = document.getElementById('new-device-name').value.trim();
+    
+    if (!deviceName) {
+      addPasskeyMessage.textContent = 'Please enter a device name';
+      return;
+    }
+    
+    startAddPasskeyButton.disabled = true;
+    addPasskeyMessage.textContent = 'Starting passkey registration...';
+    
+    try {
+      // Start registration
+      const startResponse = await fetch('/auth/passkeys/add/begin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          device_name: deviceName
+        })
+      });
+      
+      if (!startResponse.ok) {
+        const error = await startResponse.json();
+        throw new Error(error.detail || 'Failed to start registration');
+      }
+      
+      const options = await startResponse.json();
+      
+      // Convert base64 strings to ArrayBuffer
+      options.challenge = base64urlToArrayBuffer(options.challenge);
+      options.user.id = base64urlToArrayBuffer(options.user.id);
+      if (options.excludeCredentials) {
+        options.excludeCredentials = options.excludeCredentials.map(cred => {
+          return {
+            ...cred,
+            id: base64urlToArrayBuffer(cred.id)
+          };
+        });
+      }
+      
+      // Create credential in browser
+      addPasskeyMessage.textContent = 'Please follow your browser\'s instructions to create a passkey...';
+      const credential = await navigator.credentials.create({
+        publicKey: options
+      });
+      
+      // Prepare credential for sending to server
+      const regCredential = {
+        id: credential.id,
+        rawId: arrayBufferToBase64url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON),
+          attestationObject: arrayBufferToBase64url(credential.response.attestationObject)
+        },
+        transports: credential.response.getTransports ? credential.response.getTransports() : []
+      };
+      
+      // Complete registration
+      addPasskeyMessage.textContent = 'Completing registration...';
+      
+      const completeResponse = await fetch('/auth/passkeys/add/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          credential: regCredential
+        })
+      });
+      
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json();
+        throw new Error(error.detail || 'Failed to complete registration');
+      }
+      
+      const result = await completeResponse.json();
+      
+      if (result.success) {
+        addPasskeyMessage.textContent = 'Passkey added successfully! Refreshing...';
+        // Reload page to show new passkey
+        window.location.reload();
+      } else {
+        throw new Error('Failed to add passkey');
+      }
+      
+    } catch (error) {
+      addPasskeyMessage.textContent = 'Error: ' + error.message;
+      console.error('Add passkey error:', error);
+    } finally {
+      startAddPasskeyButton.disabled = false;
+    }
+  });
+  
+  // Remove passkey functionality
+  const removeButtons = document.querySelectorAll('.remove-passkey-btn');
+  
+  removeButtons.forEach(button => {
+    button.addEventListener('click', async function() {
+      const credentialId = this.getAttribute('data-id');
+      
+      if (confirm('Are you sure you want to remove this passkey? This action cannot be undone.')) {
+        try {
+          const response = await fetch(`/auth/passkeys/${credentialId}`, {
+            method: 'DELETE'
+          });
+          
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to remove passkey');
+          }
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Reload page to update passkey list
+            window.location.reload();
+          } else {
+            throw new Error('Failed to remove passkey');
+          }
+          
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    });
+  });
+  
+  // Rename passkey functionality
+  const renameButtons = document.querySelectorAll('.rename-passkey-btn');
+  const renamePasskeyModal = document.getElementById('rename-passkey-modal');
+  const submitRenameButton = document.getElementById('submit-rename-passkey');
+  const renamePasskeyMessage = document.getElementById('rename-passkey-message');
+  
+  renameButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const credentialId = this.getAttribute('data-id');
+      document.getElementById('rename-passkey-id').value = credentialId;
+      $('#rename-passkey-modal').modal('show');
+    });
+  });
+  
+  submitRenameButton.addEventListener('click', async function() {
+    const credentialId = document.getElementById('rename-passkey-id').value;
+    const deviceName = document.getElementById('rename-device-name').value.trim();
+    
+    if (!deviceName) {
+      renamePasskeyMessage.textContent = 'Please enter a device name';
+      return;
+    }
+    
+    submitRenameButton.disabled = true;
+    renamePasskeyMessage.textContent = 'Updating device name...';
+    
+    try {
+      const response = await fetch(`/auth/passkeys/rename/${credentialId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          device_name: deviceName
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to rename passkey');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        renamePasskeyMessage.textContent = 'Passkey renamed successfully! Refreshing...';
+        // Reload page to show updated passkey name
+        window.location.reload();
+      } else {
+        throw new Error('Failed to rename passkey');
+      }
+      
+    } catch (error) {
+      renamePasskeyMessage.textContent = 'Error: ' + error.message;
+    } finally {
+      submitRenameButton.disabled = false;
+    }
+  });
+  
+  // Create token functionality
+  const createTokenForm = document.getElementById('create-token-form');
+  const tokenMessage = document.getElementById('token-message');
+  const newTokenContainer = document.getElementById('new-token-container');
+  const newTokenField = document.getElementById('new-token');
+  const copyTokenButton = document.getElementById('copy-token-button');
+  
+  createTokenForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Get selected scopes
+    const selectedScopes = [];
+    document.querySelectorAll('input[name="scopes"]:checked').forEach(input => {
+      selectedScopes.push(input.value);
+    });
+    
+    if (selectedScopes.length === 0) {
+      tokenMessage.textContent = 'Please select at least one scope';
+      return;
+    }
+    
+    const formData = {
+      scopes: selectedScopes,
+      description: document.getElementById('token-description').value.trim() || null,
+      expiry_hours: parseInt(document.getElementById('token-expiry').value) || 48
+    };
+    
+    tokenMessage.textContent = 'Creating token...';
+    
+    try {
+      const response = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create token');
+      }
+      
+      const result = await response.json();
+      
+      tokenMessage.textContent = 'Token created successfully!';
+      
+      // Display the new token
+      newTokenField.value = result.access_token;
+      newTokenContainer.style.display = 'block';
+      
+      // Reset form
+      createTokenForm.reset();
+      
+      // Focus on token field for easy copying
+      newTokenField.focus();
+      newTokenField.select();
+      
+    } catch (error) {
+      tokenMessage.textContent = 'Error: ' + error.message;
+    }
+  });
+  
+  // Copy token functionality
+  copyTokenButton.addEventListener('click', function() {
+    newTokenField.select();
+    document.execCommand('copy');
+    copyTokenButton.textContent = 'Copied!';
+    
+    setTimeout(() => {
+      copyTokenButton.textContent = 'Copy';
+    }, 2000);
+  });
+  
+  // Revoke token functionality
+  const revokeButtons = document.querySelectorAll('.revoke-token-btn');
+  
+  revokeButtons.forEach(button => {
+    button.addEventListener('click', async function() {
+      const tokenId = this.getAttribute('data-id');
+      
+      if (confirm('Are you sure you want to revoke this token? This action cannot be undone.')) {
+        try {
+          const response = await fetch(`/auth/tokens/${tokenId}`, {
+            method: 'DELETE'
+          });
+          
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to revoke token');
+          }
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Reload page to update token list
+            window.location.reload();
+          } else {
+            throw new Error('Failed to revoke token');
+          }
+          
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    });
+  });
+  
+  // Revoke all tokens functionality
+  const revokeAllButton = document.getElementById('revoke-all-tokens-button');
+  
+  revokeAllButton.addEventListener('click', async function() {
+    if (confirm('Are you sure you want to revoke all other sessions? This will log out all other devices.')) {
+      try {
+        const response = await fetch('/auth/tokens/revoke-all', {
+          method: 'POST'
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to revoke all tokens');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`Successfully revoked ${result.count} sessions.`);
+          // Reload page to update token list
+          window.location.reload();
+        } else {
+          throw new Error('Failed to revoke all tokens');
+        }
+        
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  });
+  
+  // Helper functions for WebAuthn encoding/decoding
+  function base64urlToArrayBuffer(base64url) {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padLen = (4 - (base64.length % 4)) % 4;
+    const padded = base64 + '='.repeat(padLen);
+    const binary = atob(padded);
+    const buffer = new ArrayBuffer(binary.length);
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return buffer;
+  }
+  
+  function arrayBufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+});
+</script>
+{% endblock %}

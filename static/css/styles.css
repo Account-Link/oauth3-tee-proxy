@@ -1,120 +1,103 @@
-/* Base Styles */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
+/* General Styles */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-    line-height: 1.6;
-    color: #333;
-    background-color: #f8f9fa;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .container {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+  flex: 1;
 }
 
-.main-header {
-    padding: 20px;
-    border-bottom: 1px solid #eee;
-    background-color: #f8f9fa;
+/* Authentication Forms */
+.auth-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f8f9fa;
 }
 
-.main-footer {
-    padding: 20px;
-    border-top: 1px solid #eee;
-    margin-top: auto;
-    text-align: center;
-    font-size: 0.9em;
-    color: #6c757d;
+.auth-form {
+  margin-top: 1.5rem;
 }
 
-.content {
-    padding: 20px;
-    flex: 1;
+.auth-intro {
+  color: #666;
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    line-height: 1.25;
-    margin-bottom: 16px;
+.auth-links {
+  margin-top: 2rem;
+  text-align: center;
 }
 
-h1, .page-title {
-    font-size: 2em;
-    color: #2c3e50;
+.form-message {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  min-height: 2.5rem;
 }
 
-h2 {
-    font-size: 1.5em;
-    color: #34495e;
+/* Profile Page */
+.profile-container {
+  margin-bottom: 3rem;
 }
 
-h3 {
-    font-size: 1.25em;
-    color: #34495e;
+.profile-tabs {
+  margin-top: 2rem;
 }
 
-p {
-    margin-bottom: 16px;
+.tab-content > .tab-pane {
+  padding: 1.5rem 0;
 }
 
-a {
-    color: #0066cc;
-    text-decoration: none;
+.card {
+  margin-bottom: 1.5rem;
 }
 
-a:hover {
-    text-decoration: underline;
+.passkey-list, .token-list, .access-log-list {
+  margin: 1.5rem 0;
 }
 
-code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 0.9em;
-    background-color: #f1f1f1;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
+/* Badges */
+.badge {
+  font-size: 85%;
+  padding: 0.35em 0.65em;
 }
 
-/* Utilities */
-.text-center {
-    text-align: center;
+.badge-success {
+  background-color: #28a745;
 }
 
-.mt-1 { margin-top: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-.mt-5 { margin-top: 3rem; }
+.badge-danger {
+  background-color: #dc3545;
+}
 
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.mb-5 { margin-bottom: 3rem; }
+.badge-info {
+  background-color: #17a2b8;
+}
 
-.p-1 { padding: 0.25rem; }
-.p-2 { padding: 0.5rem; }
-.p-3 { padding: 1rem; }
-.p-4 { padding: 1.5rem; }
-.p-5 { padding: 3rem; }
+.badge-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
 
-.d-flex { display: flex; }
-.flex-column { flex-direction: column; }
-.align-items-center { align-items: center; }
-.justify-content-between { justify-content: space-between; }
-.justify-content-center { justify-content: center; }
+/* Footer */
+.footer {
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  padding: 1rem 0;
+  margin-top: auto;
+}
 
-/* Component styles are handled in components.css - linked separately */
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-container {
+    padding: 1rem;
+    margin: 0 0.5rem;
+  }
+  
+  .jumbotron {
+    padding: 2rem 1rem;
+  }
+}

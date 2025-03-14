@@ -1,52 +1,59 @@
 {% extends "base.html" %}
-{% import "macros.html" as ui %}
 
-{% block title %}Welcome to OAuth3 TEE Proxy{% endblock %}
-
-{% block header %}
-<header class="main-header text-center">
-    <h1 class="page-title">Welcome to OAuth3 TEE Proxy</h1>
-</header>
-{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="auth-options">
-    <div class="auth-option">
-        <h2>Register with Passkey</h2>
-        <p>Create a new account using your device's biometric authentication or security key.</p>
-        {{ ui.button('Register with Passkey', '/register') }}
-    </div>
-    <div class="auth-option">
-        <h2>Login with Passkey</h2>
-        <p>Already have an account? Sign in with your passkey.</p>
-        {{ ui.button('Login with Passkey', '/login') }}
-    </div>
+<div class="jumbotron">
+  <h1 class="display-4">OAuth3 TEE Proxy</h1>
+  <p class="lead">A secure proxy service for managing authentication and authorization to various API services.</p>
+  <hr class="my-4">
+  <p>
+    Register with a passkey for password-less authentication and create API tokens with specific permissions to access services like Twitter and Telegram.
+  </p>
+  {% if not user %}
+  <div class="mt-4">
+    <a href="/auth/register" class="btn btn-primary btn-lg mr-2">Register with Passkey</a>
+    <a href="/auth/login" class="btn btn-outline-primary btn-lg">Login</a>
+  </div>
+  {% else %}
+  <div class="mt-4">
+    <a href="/auth/profile" class="btn btn-primary btn-lg">Go to Profile</a>
+  </div>
+  {% endif %}
 </div>
 
-<div class="card mt-5">
-    <div class="card-header">
-        <h3>About OAuth3 TEE Proxy</h3>
+<div class="row mt-5">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Passkey Authentication</h5>
+        <p class="card-text">
+          Register and login using passkeys (WebAuthn) for secure, password-less authentication. 
+          Multiple passkeys can be registered to a single account for device flexibility.
+        </p>
+      </div>
     </div>
-    <div class="card-body">
-        <p>OAuth3 TEE Proxy is a secure intermediary between your applications and various online services. 
-        It enhances traditional OAuth by providing:</p>
-        
-        <ul>
-            <li>More granular control over access permissions</li>
-            <li>Enhanced security through Trusted Execution Environments</li>
-            <li>Multi-account support across different services</li>
-            <li>Policy-based access controls</li>
-        </ul>
-        
-        <p>Register now to get started managing your Twitter and Telegram accounts securely.</p>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">API Tokens</h5>
+        <p class="card-text">
+          Create API tokens with specific permissions through granular scopes.
+          Tokens have a configurable expiration time and can be revoked at any time.
+        </p>
+      </div>
     </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Security Features</h5>
+        <p class="card-text">
+          All authentication events are logged and visible to users. Comprehensive access logging and token management for enhanced security.
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block footer %}
-<footer class="main-footer">
-    <div class="footer-content">
-        <p>OAuth3 TEE Proxy &copy; 2025 | <a href="https://github.com/flashbots" target="_blank">Flashbots</a></p>
-    </div>
-</footer>
 {% endblock %}

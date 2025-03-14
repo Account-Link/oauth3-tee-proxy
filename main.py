@@ -20,9 +20,8 @@ from starlette.middleware.sessions import SessionMiddleware
 # Local imports
 from config import get_settings
 from database import get_db, engine, Base
-from middleware import create_auth_middleware
-from models import User, WebAuthnCredential, OAuth2Token
-from oauth2_routes import router as oauth2_router
+from models import User, WebAuthnCredential, JWTToken
+from auth.middleware import AuthMiddleware
 
 # Plugin system
 from plugin_manager import plugin_manager
@@ -49,7 +48,7 @@ settings = get_settings()
 # Initialize database
 Base.metadata.create_all(bind=engine)
 
-# Add session middleware FIRST (needed for SessionAuthStrategy)
+# Add session middleware FIRST (needed for WebAuthn)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=settings.SECRET_KEY,
@@ -60,29 +59,74 @@ app.add_middleware(
 )
 
 # Add authentication middleware
-app.add_middleware(create_auth_middleware)
+app.add_middleware(
+    AuthMiddleware,
+    public_paths=[
+        "/",
+        "/auth/register",
+        "/auth/register/begin",
+        "/auth/register/complete",
+        "/auth/login",
+        "/auth/login/begin",
+        "/auth/login/complete",
+        "/auth/logout",
+        "/static/*",
+        "/docs",
+        "/redoc",
+        "/openapi.json"
+    ],
+    protected_paths=[
+        "/profile",
+        "/profile/*",
+        "/auth/profile",
+        "/auth/profile/*",
+        "/auth/passkeys/*",
+        "/auth/tokens/*",
+        "/api/*",
+        "/dashboard",
+        "/dashboard/*"
+    ]
+)
 
 # Import and include routers
-from oauth2_routes import router as oauth2_router, update_scopes_from_plugins
-from ui_routes import router as ui_router
+from ui_routes.auth_routes import router as auth_router
+from ui_routes.api_routes import router as api_router, update_available_scopes
 
 # Initialize plugins first
 plugin_manager.discover_plugins()
 
-# Update OAuth2 scopes from plugins
-update_scopes_from_plugins()
+# Get plugin scopes and update API router
+plugin_scopes = plugin_manager.get_all_plugin_scopes()
+update_available_scopes(plugin_scopes)
 
-# Now include routers
-app.include_router(oauth2_router)
-app.include_router(ui_router)
+# Register routers
+app.include_router(auth_router)
+app.include_router(api_router)
+
+# Root route
+@app.get("/")
+async def root(request: Request):
+    """Render the home page."""
+    from fastapi.templating import Jinja2Templates
+    templates = Jinja2Templates(directory="templates")
+    
+    # Check if user is authenticated
+    user = getattr(request.state, "user", None)
+    
+    return templates.TemplateResponse(
+        "home.html",
+        {
+            "request": request,
+            "title": "OAuth3 TEE Proxy",
+            "user": user
+        }
+    )
 
 # Include service-specific routers from plugins
 service_routers = plugin_manager.get_service_routers()
 for service_name, router in service_routers.items():
     app.include_router(router, prefix=f"/{service_name}")
     logger.info(f"Mounted routes for service: {service_name}")
-
-# API routes are now provided by service-specific plugins
 
 if __name__ == "__main__":
     import uvicorn
