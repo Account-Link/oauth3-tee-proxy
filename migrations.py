@@ -118,9 +118,34 @@ def create_twitter_oauth_credentials_table():
     logger.info("Created twitter_oauth_credentials table")
 
 # Register migrations (in order)
+def ensure_jwt_token_is_active_column():
+    """
+    Migration to ensure jwt_tokens table has is_active column.
+    
+    This migration checks if the jwt_tokens table has the is_active column,
+    and adds it if it's missing.
+    """
+    # Check if the table exists
+    inspector = sa.inspect(engine)
+    if not "jwt_tokens" in inspector.get_table_names():
+        logger.warning("jwt_tokens table does not exist, skipping migration")
+        return
+    
+    # Check if the column already exists
+    columns = [c["name"] for c in inspector.get_columns("jwt_tokens")]
+    if "is_active" in columns:
+        logger.info("is_active column already exists in jwt_tokens table")
+        return
+    
+    # Add the column
+    logger.info("Adding is_active column to jwt_tokens table")
+    op.add_column("jwt_tokens", Column("is_active", sa.Boolean, server_default="true"))
+    logger.info("Added is_active column to jwt_tokens table")
+
 migrations.append(add_policy_json_to_twitter_accounts)
 migrations.append(add_can_login_to_twitter_accounts)
 migrations.append(create_twitter_oauth_credentials_table)
+migrations.append(ensure_jwt_token_is_active_column)
 
 def apply_migrations():
     """

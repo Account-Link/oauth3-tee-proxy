@@ -130,13 +130,13 @@ class TwitterGraphQLRoutes(RoutePlugin):
             user_id = request.session.get("user_id")
             if not user_id:
                 from fastapi.responses import RedirectResponse
-                return RedirectResponse(url="/login")
+                return RedirectResponse(url="/auth/login")
             
             user = db.query(User).filter(User.id == user_id).first()
             if not user:
                 request.session.clear()
                 from fastapi.responses import RedirectResponse
-                return RedirectResponse(url="/login")
+                return RedirectResponse(url="/auth/login")
             
             # Get active OAuth2 tokens with appropriate scopes
             oauth2_tokens = db.query(OAuth2Token).filter(

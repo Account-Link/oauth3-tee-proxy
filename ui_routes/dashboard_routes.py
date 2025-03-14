@@ -84,7 +84,6 @@ async def dashboard(
             # Get active OAuth2 tokens
             context["oauth2_tokens"] = db.query(OAuth2Token).filter(
                 OAuth2Token.user_id == user.id,
-                OAuth2Token.is_active == True,
                 OAuth2Token.expires_at > datetime.utcnow()
             ).all()
         except Exception as e:

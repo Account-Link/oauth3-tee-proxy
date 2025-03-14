@@ -34,8 +34,20 @@ def create_auth_ui_router() -> APIRouter:
         """
         # Check if user is authenticated
         user_id = request.session.get("user_id")
-        if not user_id:
-            return RedirectResponse(url="/login")
+        logger.debug(f"Session auth check for Twitter auth admin. Session user_id: {user_id}")
+        
+        # Also try to get user from JWT
+        user_from_jwt = getattr(request.state, "user", None)
+        logger.debug(f"JWT auth check for Twitter auth admin. JWT user: {user_from_jwt is not None}")
+        
+        if not user_id and not user_from_jwt:
+            logger.warning("No authentication found, redirecting to login")
+            return RedirectResponse(url="/auth/login")
+            
+        if not user_id and user_from_jwt:
+            # Use JWT user if session is missing
+            user_id = user_from_jwt.id
+            logger.debug(f"Using JWT user_id: {user_id} instead of session")
         
         try:
             from fastapi.templating import Jinja2Templates

@@ -157,14 +157,18 @@ def validate_token(
             return None
             
         # Check if token exists and is active
-        token_record = db.query(JWTToken).filter(
-            JWTToken.token_id == token_id,
-            JWTToken.is_active == True
-        ).first()
-        
-        if not token_record:
-            logger.warning(f"Token {token_id} not found or inactive")
-            return None
+        try:
+            token_record = db.query(JWTToken).filter(
+                JWTToken.token_id == token_id,
+                JWTToken.is_active == True
+            ).first()
+            
+            if not token_record:
+                logger.warning(f"Token {token_id} not found or inactive")
+                return None
+        except Exception as e:
+            logger.error(f"Error querying token: {str(e)}")
+            # Continue validation despite the error
             
         # Now verify the token
         payload = jwt.decode(

@@ -100,21 +100,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # Try to get token from cookie first, then Authorization header
         token = request.cookies.get("access_token")
+        logger.debug(f"Cookie token for {path}: {token is not None}")
+        
         if not token and "Authorization" in request.headers:
             auth_header = request.headers["Authorization"]
             if auth_header.startswith("Bearer "):
                 token = auth_header.replace("Bearer ", "")
+                logger.debug(f"Authorization header token for {path}: {token is not None}")
         
         # If token exists, validate it
         if token:
             db = next(get_db())
+            logger.debug(f"Validating token for {path}")
             token_data = validate_token(token, db, request)
             
             if token_data:
+                logger.debug(f"Token validation successful for {path}")
                 # Attach user and token data to request
                 request.state.user = token_data["user"]
                 request.state.token = token_data
                 request.state.is_authenticated = True
+            else:
+                logger.debug(f"Token validation failed for {path}")
         
         # Check if authentication is required but not provided
         if self._requires_auth(path) and not request.state.is_authenticated:

@@ -48,7 +48,7 @@ def create_account_router() -> APIRouter:
         # Check if user is authenticated via session
         user_id = request.session.get("user_id")
         if not user_id:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/auth/login", status_code=303)
         
         try:
             # Get all Twitter accounts for this user
@@ -119,7 +119,7 @@ def create_account_router() -> APIRouter:
         # Check if user is authenticated via session
         user_id = request.session.get("user_id")
         if not user_id:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/auth/login", status_code=303)
         
         try:
             # Get the Twitter account
@@ -189,7 +189,7 @@ def create_account_router() -> APIRouter:
         # Check if user is authenticated via session
         user_id = request.session.get("user_id")
         if not user_id:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/auth/login", status_code=303)
         
         try:
             # Get the Twitter account
@@ -264,7 +264,7 @@ def create_account_router() -> APIRouter:
         # Check if user is authenticated via session
         user_id = request.session.get("user_id")
         if not user_id:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/auth/login", status_code=303)
         
         try:
             # Get the Twitter account
@@ -332,7 +332,7 @@ def create_account_router() -> APIRouter:
         # Check if user is authenticated via session
         user_id = request.session.get("user_id")
         if not user_id:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/auth/login", status_code=303)
         
         try:
             # Get all Twitter accounts for this user
