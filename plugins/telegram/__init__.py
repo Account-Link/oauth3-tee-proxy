@@ -44,5 +44,5 @@ from .resource import TelegramResourcePlugin
 from plugins import register_authorization_plugin, register_resource_plugin
 
 # Automatically register the plugins when this package is imported
-register_authorization_plugin(TelegramAuthorizationPlugin)
-register_resource_plugin(TelegramResourcePlugin)
+register_authorization_plugin("telegram", TelegramAuthorizationPlugin)
+register_resource_plugin("telegram", TelegramResourcePlugin)

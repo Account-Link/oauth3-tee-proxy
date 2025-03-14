@@ -27,6 +27,24 @@ class User(Base):
     post_keys = relationship("PostKey", back_populates="user")
     access_tokens = relationship("JWTToken", back_populates="user")
     access_logs = relationship("AuthAccessLog", back_populates="user")
+    oauth2_tokens = relationship("OAuth2Token", back_populates="user")
+
+class OAuth2Token(Base):
+    __tablename__ = "oauth2tokens"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    service = Column(String, nullable=False)  # e.g., "twitter", "github"
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    scope = Column(String, nullable=True)
+    token_type = Column(String, default="bearer")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship
+    user = relationship("User", back_populates="oauth2_tokens")
 
 class WebAuthnCredential(Base):
     __tablename__ = "webauthn_credentials"

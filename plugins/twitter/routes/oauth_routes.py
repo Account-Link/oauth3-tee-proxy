@@ -46,6 +46,17 @@ class TwitterOAuthRoutes(RoutePlugin):
     
     service_name = "twitter/oauth"
     
+    def get_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers for this plugin.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to routers
+        """
+        return {"twitter-oauth": self.get_router()}
+    
     def get_router(self) -> APIRouter:
         """
         Get the router for Twitter OAuth routes.

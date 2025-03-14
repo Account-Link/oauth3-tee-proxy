@@ -71,15 +71,15 @@ from .routes import TwitterRoutes, TwitterGraphQLRoutes, TwitterV1Routes, Twitte
 from plugins import register_authorization_plugin, register_resource_plugin, register_route_plugin
 
 # Automatically register the plugins when this package is imported
-register_authorization_plugin(TwitterCookieAuthorizationPlugin)
-register_authorization_plugin(TwitterOAuthAuthorizationPlugin)
-register_resource_plugin(TwitterApiResourcePlugin)
-register_resource_plugin(TwitterGraphQLResourcePlugin)
-register_resource_plugin(TwitterV1ResourcePlugin)
-register_route_plugin(TwitterRoutes)
-register_route_plugin(TwitterGraphQLRoutes)
-register_route_plugin(TwitterV1Routes)
-register_route_plugin(TwitterOAuthRoutes)
+register_authorization_plugin("twitter-cookie", TwitterCookieAuthorizationPlugin)
+register_authorization_plugin("twitter-oauth", TwitterOAuthAuthorizationPlugin)
+register_resource_plugin("twitter", TwitterApiResourcePlugin)
+register_resource_plugin("twitter-graphql", TwitterGraphQLResourcePlugin)
+register_resource_plugin("twitter-v1", TwitterV1ResourcePlugin)
+register_route_plugin("twitter", TwitterRoutes)
+register_route_plugin("twitter-graphql", TwitterGraphQLRoutes)
+register_route_plugin("twitter-v1", TwitterV1Routes)
+register_route_plugin("twitter-oauth", TwitterOAuthRoutes)
 
 # Apply patches to the Twitter library
 from .patches import apply_patches

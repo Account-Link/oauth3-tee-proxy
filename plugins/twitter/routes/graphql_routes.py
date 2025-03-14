@@ -48,8 +48,8 @@ class TwitterGraphQLRoutes(RoutePlugin):
     Plugin for Twitter GraphQL API routes.
     
     This class implements the RoutePlugin interface for Twitter GraphQL routes,
-    providing HTTP endpoints for interacting with Twitter's private GraphQL API
-    through the TEE Proxy.
+    providing HTTP endpoints that let clients execute GraphQL queries against
+    Twitter's API via the proxy.
     
     The routes are mounted under the "/twitter/graphql" prefix in the application.
     
@@ -58,6 +58,17 @@ class TwitterGraphQLRoutes(RoutePlugin):
     """
     
     service_name = "twitter/graphql"
+    
+    def get_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers for this plugin.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to routers
+        """
+        return {"twitter-graphql": self.get_router()}
     
     def get_auth_requirements(self) -> dict:
         """

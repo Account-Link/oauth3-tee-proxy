@@ -166,6 +166,15 @@ class TwitterGraphQLResourcePlugin(TwitterBaseResourcePlugin):
         "twitter.graphql.write": "Permission to make write GraphQL API calls"
     }
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this resource plugin.
+        
+        Returns:
+            str: The plugin ID ("twitter-graphql")
+        """
+        return "twitter-graphql"
+    
     async def initialize_client(self, credentials: Dict[str, Any]) -> TwitterGraphQLClient:
         """
         Initialize Twitter GraphQL client with credentials.

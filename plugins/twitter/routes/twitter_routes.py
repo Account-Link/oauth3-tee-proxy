@@ -16,6 +16,7 @@ which have been moved to more specialized modules.
 """
 
 import logging
+from typing import Dict
 
 from fastapi import APIRouter
 
@@ -39,6 +40,17 @@ class TwitterRoutes(RoutePlugin):
     """
     
     service_name = "twitter"
+    
+    def get_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers for this plugin.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to routers
+        """
+        return {"twitter": self.get_router()}
     
     def get_router(self) -> APIRouter:
         """

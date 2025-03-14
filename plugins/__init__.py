@@ -6,7 +6,89 @@ This module defines the interfaces and base classes for plugins.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple, Union, Type
+
+# Global registries for different plugin types
+_authorization_plugins: Dict[str, Type["AuthorizationPlugin"]] = {}
+_resource_plugins: Dict[str, Type["ResourcePlugin"]] = {}
+_route_plugins: Dict[str, Type["RoutePlugin"]] = {}
+
+class AuthorizationPlugin(ABC):
+    """
+    Base interface for plugins that provide authorization functionality.
+    
+    An authorization plugin is responsible for authenticating users with a
+    specific service and generating credentials that can be used to access
+    that service's API.
+    """
+    
+    @abstractmethod
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this authorization plugin.
+        
+        Returns:
+            str: The plugin ID (e.g., "twitter-oauth", "twitter-cookie")
+        """
+        pass
+    
+    @abstractmethod
+    def get_display_name(self) -> str:
+        """
+        Get a human-readable name for this authorization method.
+        
+        Returns:
+            str: The display name (e.g., "Twitter OAuth", "Twitter Cookie Auth")
+        """
+        pass
+    
+    def get_auth_scopes(self) -> List[str]:
+        """
+        Get the auth scopes this plugin requires.
+        
+        Returns:
+            List[str]: List of required scopes
+        """
+        return []
+
+class ResourcePlugin(ABC):
+    """
+    Base interface for plugins that provide access to external resources.
+    
+    A resource plugin is responsible for providing access to external resources
+    such as APIs, databases, or other services. It typically uses credentials
+    obtained from an authorization plugin to authenticate requests to the
+    external service.
+    """
+    
+    @abstractmethod
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this resource plugin.
+        
+        Returns:
+            str: The plugin ID (e.g., "twitter", "telegram")
+        """
+        pass
+    
+    def get_available_scopes(self) -> List[str]:
+        """
+        Get the available scopes for this resource.
+        
+        Returns:
+            List[str]: List of available scopes
+        """
+        return []
+    
+    @property
+    def SCOPES(self) -> Dict[str, str]:
+        """
+        Get the scope descriptions for this resource.
+        
+        Returns:
+            Dict[str, str]: Dictionary mapping scope names to descriptions
+        """
+        return {}
 
 class RoutePlugin(ABC):
     """
@@ -62,3 +144,99 @@ class RoutePlugin(ABC):
             Dict[str, Set[str]]: Dictionary mapping policy names to scopes
         """
         return {}
+
+# Plugin registration functions
+def register_authorization_plugin(service_name: str, plugin_class: Type[AuthorizationPlugin]) -> None:
+    """
+    Register an authorization plugin for a service.
+    
+    Args:
+        service_name (str): The unique name of the service this plugin authenticates with
+        plugin_class (Type[AuthorizationPlugin]): The plugin class to register
+    """
+    _authorization_plugins[service_name] = plugin_class
+
+def register_resource_plugin(service_name: str, plugin_class: Type[ResourcePlugin]) -> None:
+    """
+    Register a resource plugin for a service.
+    
+    Args:
+        service_name (str): The unique name of the service this plugin provides access to
+        plugin_class (Type[ResourcePlugin]): The plugin class to register
+    """
+    _resource_plugins[service_name] = plugin_class
+
+def register_route_plugin(service_name: str, plugin_class: Type[RoutePlugin]) -> None:
+    """
+    Register a route plugin for a service.
+    
+    Args:
+        service_name (str): The unique name of the service this plugin provides routes for
+        plugin_class (Type[RoutePlugin]): The plugin class to register
+    """
+    _route_plugins[service_name] = plugin_class
+
+# Plugin retrieval functions
+def get_authorization_plugin(service_name: str) -> Optional[Type[AuthorizationPlugin]]:
+    """
+    Get an authorization plugin by service name.
+    
+    Args:
+        service_name (str): The unique name of the service
+        
+    Returns:
+        Optional[Type[AuthorizationPlugin]]: The plugin class if registered, None otherwise
+    """
+    return _authorization_plugins.get(service_name)
+
+def get_resource_plugin(service_name: str) -> Optional[Type[ResourcePlugin]]:
+    """
+    Get a resource plugin by service name.
+    
+    Args:
+        service_name (str): The unique name of the service
+        
+    Returns:
+        Optional[Type[ResourcePlugin]]: The plugin class if registered, None otherwise
+    """
+    return _resource_plugins.get(service_name)
+
+def get_route_plugin(service_name: str) -> Optional[Type[RoutePlugin]]:
+    """
+    Get a route plugin by service name.
+    
+    Args:
+        service_name (str): The unique name of the service
+        
+    Returns:
+        Optional[Type[RoutePlugin]]: The plugin class if registered, None otherwise
+    """
+    return _route_plugins.get(service_name)
+
+# Collection functions
+def get_all_authorization_plugins() -> Dict[str, Type[AuthorizationPlugin]]:
+    """
+    Get all registered authorization plugins.
+    
+    Returns:
+        Dict[str, Type[AuthorizationPlugin]]: Dictionary mapping service names to plugin classes
+    """
+    return _authorization_plugins.copy()
+
+def get_all_resource_plugins() -> Dict[str, Type[ResourcePlugin]]:
+    """
+    Get all registered resource plugins.
+    
+    Returns:
+        Dict[str, Type[ResourcePlugin]]: Dictionary mapping service names to plugin classes
+    """
+    return _resource_plugins.copy()
+
+def get_all_route_plugin_classes() -> Dict[str, Type[RoutePlugin]]:
+    """
+    Get all registered route plugins.
+    
+    Returns:
+        Dict[str, Type[RoutePlugin]]: Dictionary mapping service names to plugin classes
+    """
+    return _route_plugins.copy()

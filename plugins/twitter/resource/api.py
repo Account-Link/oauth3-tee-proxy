@@ -128,6 +128,15 @@ class TwitterApiResourcePlugin(TwitterBaseResourcePlugin):
     
     # We inherit SCOPES from the base class
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this resource plugin.
+        
+        Returns:
+            str: The plugin ID ("twitter")
+        """
+        return self.service_name
+    
     async def initialize_client(self, credentials: Dict[str, Any]) -> TwitterApiClient:
         """
         Initialize Twitter client with credentials.

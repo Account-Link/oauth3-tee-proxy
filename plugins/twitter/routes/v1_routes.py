@@ -48,6 +48,17 @@ class TwitterV1Routes(RoutePlugin):
         service_name (str): The unique identifier for this plugin
     """
     
+    def get_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers for this plugin.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to routers
+        """
+        return {"twitter-v1": self.get_router()}
+    
     service_name = "twitter/v1"
     
     def get_router(self) -> APIRouter:

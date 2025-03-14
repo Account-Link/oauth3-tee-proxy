@@ -70,6 +70,24 @@ class TwitterCookieAuthorizationPlugin(TwitterBaseAuthorizationPlugin):
     
     service_name = "twitter_cookie"
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this authorization plugin.
+        
+        Returns:
+            str: The plugin ID ("twitter-cookie")
+        """
+        return "twitter-cookie"
+    
+    def get_display_name(self) -> str:
+        """
+        Get a human-readable name for this authorization method.
+        
+        Returns:
+            str: The display name ("Twitter Cookie Authentication")
+        """
+        return "Twitter Cookie Authentication"
+    
     @classmethod
     def create_from_cookie_string(cls, cookie_string: str) -> "TwitterCookieAuthorizationPlugin":
         """

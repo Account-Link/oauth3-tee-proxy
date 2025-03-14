@@ -180,6 +180,15 @@ class TwitterV1ResourcePlugin(TwitterBaseResourcePlugin):
         "twitter.v1.write": "Permission to make write v1.1 API calls"
     }
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this resource plugin.
+        
+        Returns:
+            str: The plugin ID ("twitter-v1")
+        """
+        return "twitter-v1"
+    
     async def initialize_client(self, credentials: Dict[str, Any]) -> TwitterV1Client:
         """
         Initialize Twitter v1.1 client with credentials.

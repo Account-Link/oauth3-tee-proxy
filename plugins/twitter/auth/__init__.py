@@ -40,6 +40,28 @@ class TwitterBaseAuthorizationPlugin(AuthorizationPlugin):
     
     service_name = "twitter_base"  # Should be overridden by subclasses
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this authorization plugin.
+        
+        This method should be overridden by subclasses to return the plugin ID.
+        
+        Returns:
+            str: The plugin ID
+        """
+        raise NotImplementedError("Subclasses must implement get_plugin_id")
+    
+    def get_display_name(self) -> str:
+        """
+        Get a human-readable name for this authorization method.
+        
+        This method should be overridden by subclasses to return the display name.
+        
+        Returns:
+            str: The display name
+        """
+        raise NotImplementedError("Subclasses must implement get_display_name")
+    
     async def validate_credentials(self, credentials: Dict[str, Any]) -> bool:
         """
         Validate if the credentials are valid.

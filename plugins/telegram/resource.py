@@ -26,7 +26,7 @@ Supported Scopes:
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -232,6 +232,26 @@ class TelegramResourcePlugin(ResourcePlugin, RoutePlugin):
     """
     
     service_name = "telegram"
+    
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this resource plugin.
+        
+        Returns:
+            str: The plugin ID ("telegram")
+        """
+        return self.service_name
+    
+    def get_routers(self) -> Dict[str, APIRouter]:
+        """
+        Get all routers for this plugin.
+        
+        This is required by the RoutePlugin interface.
+        
+        Returns:
+            Dict[str, APIRouter]: Dictionary mapping service names to routers
+        """
+        return {"telegram": self.get_router()}
     
     SCOPES = {
         "telegram.post_any": "Permission to post to any Telegram channel",

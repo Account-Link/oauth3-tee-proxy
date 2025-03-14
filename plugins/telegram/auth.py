@@ -59,6 +59,24 @@ class TelegramAuthorizationPlugin(AuthorizationPlugin):
         api_hash (str): The Telegram API hash from application settings
     """
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this authorization plugin.
+        
+        Returns:
+            str: The plugin ID ("telegram")
+        """
+        return "telegram"
+    
+    def get_display_name(self) -> str:
+        """
+        Get a human-readable name for this authorization method.
+        
+        Returns:
+            str: The display name ("Telegram Authentication")
+        """
+        return "Telegram Authentication"
+    
     service_name = "telegram"
     
     def __init__(self):

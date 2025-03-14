@@ -49,6 +49,24 @@ class TwitterOAuthAuthorizationPlugin(AuthorizationPlugin):
     
     service_name = "twitter_oauth"
     
+    def get_plugin_id(self) -> str:
+        """
+        Get the unique identifier for this authorization plugin.
+        
+        Returns:
+            str: The plugin ID ("twitter-oauth")
+        """
+        return "twitter-oauth"
+    
+    def get_display_name(self) -> str:
+        """
+        Get a human-readable name for this authorization method.
+        
+        Returns:
+            str: The display name ("Twitter OAuth")
+        """
+        return "Twitter OAuth"
+    
     def __init__(self):
         """Initialize the Twitter OAuth authorization plugin."""
         # Validation checks for required settings
