@@ -28,16 +28,16 @@ Authentication Flow:
 
 import json
 import logging
-from typing import Dict, Any, Optional
-import time
+from typing import Dict, Any
 import requests
+from twitter.account import Account
 
 from plugins.twitter.auth import TwitterBaseAuthorizationPlugin
 
 # Lazily import Account to avoid startup issues
 def get_twitter_account():
     try:
-        from twitter.account import Account
+        
         return Account
     except ImportError:
         logger.error("Could not import Twitter Account class - twitter-api-client may not be installed")
@@ -118,13 +118,7 @@ class TwitterCookieAuthorizationPlugin(TwitterBaseAuthorizationPlugin):
             auth_token_length = len(auth_token)
             logger.info(f"Auth token length: {auth_token_length} chars")
             
-            # FOR TESTING ONLY: Return true if the auth_token is at least 20 chars
-            # Remove this in production and use proper validation
-            if auth_token_length >= 20:
-                logger.warning("TESTING MODE: Bypassing actual token validation - accepting token based on length only")
-                return True
-                
-            # Check if token seems valid (should be around 40 characters)
+            # Check if token seems valid
             if auth_token_length < 20:
                 logger.error("Auth token is too short, likely invalid")
                 return False
