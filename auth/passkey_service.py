@@ -314,6 +314,7 @@ class PasskeyService:
                 transports = []
                 if cred.transports:
                     try:
+                        import json
                         transports_data = json.loads(cred.transports)
                         if isinstance(transports_data, list):
                             transports = [AuthenticatorTransport(t) for t in transports_data]
@@ -355,7 +356,6 @@ class PasskeyService:
             
             # Convert result to dict for inspection and potential modification
             try:
-                import json
                 options_dict = json.loads(options_json)
                 
                 # Log for debugging
