@@ -103,16 +103,21 @@ class DeviceNameRequest(BaseModel):
 @router.get("/register")
 async def register_page(request: Request):
     """Render the registration page."""
-    # For backward compatibility, we're keeping the old templates but using the new ones
+    # Use the regular register.html template which has all the JavaScript properly defined
+    # Create this if it doesn't exist yet
     try:
+        # Try the new template first
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "title": "Register with Passkey"}
+        )
+    except Exception as e:
+        # Fall back to webauthn_register.html
+        logger.error(f"Error rendering register.html: {str(e)}")
         return templates.TemplateResponse(
             "webauthn_register.html",
             {"request": request, "title": "Register with Passkey"}
         )
-    except Exception as e:
-        logger.error(f"Error rendering webauthn_register.html: {str(e)}")
-        # Fallback to old template
-        return RedirectResponse(url="/webauthn/register")
 
 @router.post("/register/begin")
 async def start_registration(
@@ -213,16 +218,11 @@ async def complete_registration(
 @router.get("/login")
 async def login_page(request: Request):
     """Render the login page."""
-    # For backward compatibility, we're keeping the old templates but using the new ones
-    try:
-        return templates.TemplateResponse(
-            "webauthn_login.html",
-            {"request": request, "title": "Login with Passkey"}
-        )
-    except Exception as e:
-        logger.error(f"Error rendering webauthn_login.html: {str(e)}")
-        # Fallback to old template
-        return RedirectResponse(url="/webauthn/login")
+    # Use the regular login.html template which has all the JavaScript properly defined
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "title": "Login with Passkey"}
+    )
 
 @router.post("/login/begin")
 async def start_login(
