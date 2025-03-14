@@ -39,7 +39,7 @@
             statusElement.classList.remove('d-none');
             
             // Get registration options from server
-            const optionsResponse = await fetch('/webauthn/register/begin', {
+            const optionsResponse = await fetch('/auth/register/begin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -87,7 +87,7 @@
             console.log("Sending credential response:", credentialResponse);
 
             // Send response to server
-            const verificationResponse = await fetch('/webauthn/register/complete', {
+            const verificationResponse = await fetch('/auth/register/complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

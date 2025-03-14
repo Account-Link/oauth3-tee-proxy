@@ -99,10 +99,16 @@ class DeviceNameRequest(BaseModel):
 @router.get("/register")
 async def register_page(request: Request):
     """Render the registration page."""
-    return templates.TemplateResponse(
-        "register.html",
-        {"request": request, "title": "Register with Passkey"}
-    )
+    # For backward compatibility, we're keeping the old templates but using the new ones
+    try:
+        return templates.TemplateResponse(
+            "webauthn_register.html",
+            {"request": request, "title": "Register with Passkey"}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering webauthn_register.html: {str(e)}")
+        # Fallback to old template
+        return RedirectResponse(url="/webauthn/register")
 
 @router.post("/register/begin")
 async def start_registration(
@@ -135,6 +141,9 @@ async def complete_registration(
 ):
     """Complete passkey registration process."""
     try:
+        # For debugging
+        print(f"Received credential response: {credential_response}")
+        
         result = passkey_service.complete_registration(
             request=request,
             db=db,
@@ -161,10 +170,16 @@ async def complete_registration(
 @router.get("/login")
 async def login_page(request: Request):
     """Render the login page."""
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request, "title": "Login with Passkey"}
-    )
+    # For backward compatibility, we're keeping the old templates but using the new ones
+    try:
+        return templates.TemplateResponse(
+            "webauthn_login.html",
+            {"request": request, "title": "Login with Passkey"}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering webauthn_login.html: {str(e)}")
+        # Fallback to old template
+        return RedirectResponse(url="/webauthn/login")
 
 @router.post("/login/begin")
 async def start_login(

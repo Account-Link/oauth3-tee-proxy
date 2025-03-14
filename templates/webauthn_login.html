@@ -38,7 +38,7 @@
             statusElement.classList.remove('d-none');
             
             // Get authentication options from server
-            const optionsResponse = await fetch('/webauthn/login/begin', {
+            const optionsResponse = await fetch('/auth/login/begin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -90,7 +90,7 @@
             console.log("Sending credential response:", credentialResponse);
 
             // Send response to server
-            const verificationResponse = await fetch('/webauthn/login/complete', {
+            const verificationResponse = await fetch('/auth/login/complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
