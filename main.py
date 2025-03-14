@@ -90,6 +90,7 @@ app.add_middleware(
 
 # Import and include routers
 from ui_routes.auth_routes import router as auth_router
+from ui_routes.dashboard_routes import router as dashboard_router
 from ui_routes.api_routes import router as api_router, update_available_scopes
 
 # Initialize plugins first
@@ -101,6 +102,7 @@ update_available_scopes(plugin_scopes)
 
 # Register routers
 app.include_router(auth_router)
+app.include_router(dashboard_router)
 app.include_router(api_router)
 
 # Root route

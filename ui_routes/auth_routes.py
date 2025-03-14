@@ -51,6 +51,10 @@ class CredentialResponse(BaseModel):
     """Model for credential data in responses."""
     credential: Dict[str, Any]
     client_data: Optional[str] = None
+    
+    class Config:
+        # Allow extra fields for flexibility
+        extra = "allow"
 
 class ProfileUpdateRequest(BaseModel):
     """Request model for updating user profile."""
